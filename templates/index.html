@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無料案内所 | あなたにぴったりの作品をレコメンド</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+    <style>
+        :root {
+            --bg-color: #fdfbfe;
+            --main-pink: #ff8fa3;
+            --light-pink: #ffe5ec;
+            --dark-pink: #fb6f92;
+            --text-dark: #1a1b23;
+            --white: #ffffff;
+            --border-pink: rgba(255, 143, 163, 0.25);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(at 0% 0%, hsla(343,100%,96%,1) 0, transparent 40%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: auto;
+            padding: 40px;
+            display: flex;
+            gap: 60px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .consult-box {
+            background: var(--white);
+            border: 1px solid var(--border-pink);
+            border-radius: 24px;
+            padding: 40px;
+            flex: 1;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(255, 143, 163, 0.05);
+        }
+
+        h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; line-height: 1.35; }
+        .subtitle { font-size: 15px; color: #767881; margin-bottom: 30px; font-weight: 600; }
+
+        .search-input {
+            width: 100%;
+            height: 60px;
+            padding: 0 20px;
+            border: 1px solid rgba(255, 143, 163, 0.3);
+            border-radius: 16px;
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, var(--main-pink) 0%, var(--dark-pink) 100%);
+            color: var(--white);
+            border: none;
+            border-radius: 16px;
+            padding: 18px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(251, 111, 146, 0.25);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                padding: 20px 16px 32px;
+                gap: 24px;
+            }
+
+            .consult-box {
+                padding: 24px 20px;
+                border-radius: 20px;
+                max-width: 100%;
+            }
+
+            h1 { font-size: 22px; }
+            .subtitle { font-size: 14px; margin-bottom: 20px; }
+
+            .search-input {
+                height: 52px;
+                font-size: 16px;
+                margin-bottom: 16px;
+            }
+
+            .submit-btn {
+                padding: 16px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <a href="{{ url_for('index') }}" class="logo">無料案内所<span>ONLINE</span></a>
+        <button type="button" class="menu-toggle touch-btn" aria-label="メニューを開く" aria-expanded="false" aria-controls="site-nav">
+            <span></span><span></span><span></span>
+        </button>
+        <nav class="site-nav" id="site-nav">
+            <a href="{{ url_for('index') }}">ホーム</a>
+            <a href="#search">キーワード検索</a>
+        </nav>
+        <button type="button" class="nav-overlay" aria-label="メニューを閉じる"></button>
+    </header>
+
+    <div class="container">
+        <div class="left-character-zone">
+            <div class="comment-bubble">こんばんは♡ 何をお探し？</div>
+            <img src="{{ url_for('static', filename='ミルク立ち絵.png') }}" alt="ミルク主任" class="character-img" decoding="async">
+        </div>
+        <div class="consult-box" id="search">
+            <h1>あなたに最上の作品を。</h1>
+            <div class="subtitle">秘密のレコメンドカウンター</div>
+            <form action="{{ url_for('results') }}" method="GET">
+                <input type="text" name="keyword" class="search-input" placeholder="キーワードを入力してね♡" required autocomplete="off">
+                <button type="submit" class="submit-btn touch-btn">相談する</button>
+            </form>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='menu.js') }}"></script>
+</body>
+</html>

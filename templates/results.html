@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無料案内所 | 検索結果</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+    <style>
+        :root {
+            --bg-color: #fdfbfe;
+            --main-pink: #ff8fa3;
+            --light-pink: #ffe5ec;
+            --dark-pink: #fb6f92;
+            --white: #ffffff;
+            --text-dark: #1a1b23;
+            --border-pink: rgba(255, 143, 163, 0.25);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(at 0% 100%, hsla(343,100%,96%,1) 0, transparent 40%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .results-container {
+            max-width: 1300px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 30px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .top-search-area { width: 100%; max-width: 800px; margin: 0 auto 10px auto; }
+        .mini-search-box { background: var(--white); border: 1px solid var(--border-pink); border-radius: 20px; padding: 16px 24px; }
+        .mini-form { display: flex; gap: 16px; align-items: center; }
+        .mini-input {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+            padding: 14px 20px;
+            border: 1px solid rgba(255, 143, 163, 0.2);
+            border-radius: 12px;
+            font-size: 16px;
+        }
+        .mini-btn {
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--main-pink) 0%, var(--dark-pink) 100%);
+            color: var(--white);
+            border: none;
+            border-radius: 12px;
+            padding: 14px 32px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .main-layout { display: flex; gap: 40px; align-items: flex-start; width: 100%; }
+        .left-character-zone { flex-shrink: 0; position: sticky; top: 88px; align-self: flex-start; }
+        .center-cards-zone { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; max-width: 800px; }
+
+        .error-message {
+            background: var(--white);
+            border: 1px solid var(--border-pink);
+            border-radius: 16px;
+            padding: 20px 24px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #767881;
+            word-break: break-word;
+        }
+
+        .product-card {
+            display: flex;
+            background: var(--white);
+            border: 1px solid rgba(255, 143, 163, 0.12);
+            border-radius: 20px;
+            padding: 20px;
+            text-decoration: none;
+            color: inherit;
+            transition: transform 0.2s, border-color 0.2s;
+            width: 100%;
+            min-width: 0;
+        }
+        .product-card:hover { transform: translateY(-3px); border-color: var(--main-pink); }
+        .thumb-area {
+            width: 140px;
+            height: 140px;
+            flex-shrink: 0;
+            border-radius: 14px;
+            background: linear-gradient(135deg, var(--light-pink) 0%, #fff0f3 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .thumb-area::before { content: '🌸'; font-size: 28px; opacity: 0.7; }
+        .thumb-area.has-image::before { display: none; }
+        .thumb-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+
+        .info-area { flex: 1; min-width: 0; padding-left: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
+        .title-text { font-size: 18px; font-weight: 800; line-height: 1.4; margin-bottom: 6px; word-break: break-word; }
+        .author-text { font-size: 13px; color: #767881; font-weight: 600; word-break: break-word; }
+        .meta-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+        .price-text { font-size: 22px; font-weight: 900; }
+        .price-text span { font-size: 12px; color: #a6a8b6; margin-left: 2px; }
+        .view-btn-badge { font-size: 13px; font-weight: 700; color: var(--main-pink); background: var(--light-pink); padding: 8px 20px; border-radius: 30px; flex-shrink: 0; }
+
+        @media (max-width: 768px) {
+            .results-container {
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .mini-search-box {
+                padding: 14px 16px;
+                border-radius: 16px;
+            }
+
+            .mini-form {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .mini-btn {
+                width: 100%;
+                padding: 16px;
+                font-size: 16px;
+            }
+
+            .main-layout {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .left-character-zone {
+                position: static;
+                max-width: 200px;
+                margin: 0 auto;
+            }
+
+            .center-cards-zone {
+                max-width: 100%;
+            }
+
+            .product-card {
+                flex-direction: column;
+                padding: 16px;
+            }
+
+            .thumb-area {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 1;
+                max-width: 100%;
+            }
+
+            .info-area {
+                padding-left: 0;
+            }
+
+            .title-text { font-size: 16px; }
+            .price-text { font-size: 20px; }
+
+            .meta-bottom {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .view-btn-badge {
+                width: 100%;
+                text-align: center;
+                padding: 12px 20px;
+            }
+
+            .error-message {
+                padding: 16px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="site-header site-header--glass">
+        <a href="{{ url_for('index') }}" class="logo">無料案内所<span>ONLINE</span></a>
+        <button type="button" class="menu-toggle touch-btn" aria-label="メニューを開く" aria-expanded="false" aria-controls="site-nav">
+            <span></span><span></span><span></span>
+        </button>
+        <nav class="site-nav" id="site-nav">
+            <a href="{{ url_for('index') }}">ホーム</a>
+            <a href="#search">キーワード検索</a>
+        </nav>
+        <button type="button" class="nav-overlay" aria-label="メニューを閉じる"></button>
+    </header>
+
+    <div class="results-container">
+        <div class="top-search-area" id="search">
+            <div class="mini-search-box">
+                <form action="{{ url_for('results') }}" method="GET" class="mini-form">
+                    <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="他にお探しですか？♡" required autocomplete="off">
+                    <button type="submit" class="mini-btn touch-btn">相談する</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div class="left-character-zone">
+                <div class="comment-bubble">「こんなのはどうかしら？」</div>
+                <img src="{{ url_for('static', filename='ミルク立ち絵.png') }}" alt="ミルク主任" class="character-img" decoding="async">
+            </div>
+
+            <div class="center-cards-zone">
+                {% if error %}
+                <p class="error-message">{{ error }}</p>
+                {% elif results %}
+                    {% for item in results %}
+                    <a href="{{ item.url }}" class="product-card" target="_blank" rel="noopener noreferrer">
+                        <div class="thumb-area{% if item.image_url %} has-image{% endif %}">
+                            {% if item.image_url %}
+                            <img src="{{ item.image_url }}" alt="" class="thumb-img" loading="lazy" onerror="this.closest('.thumb-area').classList.remove('has-image'); this.remove();">
+                            {% endif %}
+                        </div>
+                        <div class="info-area">
+                            <div>
+                                <div class="title-text">{{ item.title }}</div>
+                                <div class="author-text">{{ item.circle_name }}</div>
+                            </div>
+                            <div class="meta-bottom">
+                                <div class="price-text">{{ item.price }}<span>(税込)</span></div>
+                                <div class="view-btn-badge">商品を見る</div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                <p class="error-message">キーワードを入力して検索してください。</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='menu.js') }}"></script>
+</body>
+</html>

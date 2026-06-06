@@ -1,0 +1,11 @@
+{
+  "name": "milk3-search",
+  "version": "1.0.0",
+  "private": true,
+  "description": "無料案内所 - DLsiteキーワード検索（Flask）",
+  "scripts": {
+    "dev": "python app.py",
+    "start": "python app.py",
+    "vercel-build": "python -c \"import app; print('Flask app OK')\""
+  }
+}
