@@ -27,7 +27,7 @@
             flex-direction: column;
         }
 
-        .container {
+        .container--home {
             max-width: 1200px;
             width: 100%;
             margin: auto;
@@ -36,6 +36,14 @@
             gap: 60px;
             align-items: center;
             justify-content: center;
+        }
+
+        .home-hero {
+            width: 180px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .consult-box {
@@ -63,31 +71,64 @@
         }
 
         @media (max-width: 768px) {
-            .container {
+            .container--home {
                 flex-direction: column;
-                padding: 16px 16px 24px;
-                gap: 16px;
+                padding: 12px 16px 20px;
+                gap: 12px;
                 align-items: stretch;
             }
 
-            .left-character-zone {
-                order: 2;
+            .home-hero {
+                width: 100%;
+                flex-direction: row;
+                align-items: flex-end;
+                justify-content: center;
+                gap: 8px;
+                order: 1;
+            }
+
+            .home-hero .comment-bubble {
+                flex: 1;
+                max-width: 52%;
+                margin-bottom: 0;
+                font-size: 12px;
+                padding: 10px 12px;
+                text-align: left;
+            }
+
+            .home-hero .comment-bubble::after {
+                bottom: 14px;
+                left: auto;
+                right: -8px;
+                transform: rotate(-90deg);
+                border-width: 8px 0 8px 10px;
+                border-color: transparent transparent transparent var(--white);
+            }
+
+            .home-hero .character-img {
+                max-width: 100px;
+                width: 100px;
+                flex-shrink: 0;
             }
 
             .consult-box {
-                order: 1;
-                padding: 20px 16px;
-                border-radius: 20px;
+                order: 2;
+                padding: 0;
+                border: none;
+                border-radius: 0;
+                background: transparent;
+                box-shadow: none;
                 max-width: 100%;
             }
 
-            h1 { font-size: 20px; }
-            .subtitle { font-size: 13px; margin-bottom: 14px; }
+            h1 { font-size: 20px; margin-bottom: 6px; }
+            .subtitle { font-size: 13px; margin-bottom: 12px; }
 
             .search-input {
                 height: 52px;
                 font-size: 16px;
                 margin-bottom: 12px;
+                background: var(--white);
             }
         }
     </style>
@@ -105,8 +146,8 @@
         <button type="button" class="nav-overlay" aria-label="メニューを閉じる"></button>
     </header>
 
-    <div class="container">
-        <div class="left-character-zone">
+    <div class="container container--home">
+        <div class="home-hero">
             <div class="comment-bubble">こんばんは♡ 何をお探し？</div>
             <img src="{{ url_for('static', filename='ミルク立ち絵.png') }}" alt="ミルク主任" class="character-img" decoding="async">
         </div>
@@ -115,15 +156,23 @@
             <div class="subtitle">秘密のレコメンドカウンター</div>
             <form action="{{ url_for('results') }}" method="GET">
                 <input type="text" name="keyword" class="search-input" placeholder="キーワードを入力してね♡" required autocomplete="off">
-                <button type="submit" class="btn-search-primary touch-btn">相談する</button>
+                <button type="submit" class="btn-search-primary touch-btn"><span class="btn-icon">🔍</span> 探す</button>
             </form>
             <div class="popular-keywords">
                 <div class="popular-keywords-title">人気の検索ワード</div>
                 <div class="keyword-chips">
-                    {% for word in popular_keywords %}
+                    {% for word in popular_keywords[:4] %}
                     <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
                     {% endfor %}
                 </div>
+                <div class="keyword-chips keyword-chips--more" hidden>
+                    {% for word in popular_keywords[4:] %}
+                    <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
+                    {% endfor %}
+                </div>
+                {% if popular_keywords|length > 4 %}
+                <button type="button" class="keyword-more-toggle touch-btn" aria-expanded="false">もっと見る▽</button>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -185,6 +185,28 @@ img {
     color: var(--dark-pink);
 }
 
+.keyword-chips--more {
+    margin-top: 10px;
+}
+
+.keyword-more-toggle {
+    display: block;
+    margin-top: 12px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--main-pink);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+}
+
+.keyword-more-toggle[aria-expanded="true"]::after {
+    content: '';
+}
+
 /* 検索ボタン強調 */
 .btn-search-primary {
     width: 100%;
@@ -207,6 +229,40 @@ img {
 
 .btn-search-primary {
     transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.btn-search-primary .btn-icon {
+    margin-right: 4px;
+}
+
+/* おすすめ作品セクション */
+.results-section-title {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.results-section-title .star {
+    color: var(--main-pink);
+}
+
+.btn-dlsite {
+    display: inline-block;
+    width: 100%;
+    text-align: center;
+    background: linear-gradient(135deg, var(--main-pink) 0%, var(--dark-pink) 100%);
+    color: var(--white) !important;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 800;
+    text-decoration: none;
+    box-shadow: 0 6px 18px rgba(251, 111, 146, 0.3);
+}
+
+.btn-dlsite:hover {
+    box-shadow: 0 8px 22px rgba(251, 111, 146, 0.4);
 }
 
 /* ご利用の流れ */
@@ -396,21 +452,8 @@ img {
         border-bottom: 1px solid rgba(255, 143, 163, 0.15);
     }
 
-    .left-character-zone {
-        width: 100%;
-        max-width: 110px;
-        margin: 0 auto;
-        order: 2;
-    }
-
-    .comment-bubble {
-        font-size: 12px;
-        padding: 10px 12px;
-        margin-bottom: 10px;
-    }
-
-    .character-img {
-        max-width: 110px;
+    .left-character-zone--results {
+        display: none;
     }
 
     .how-to-flow {

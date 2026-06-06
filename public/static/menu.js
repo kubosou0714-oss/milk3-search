@@ -24,4 +24,15 @@
             setOpen(false);
         });
     });
+
+    document.querySelectorAll('.keyword-more-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var more = btn.parentElement.querySelector('.keyword-chips--more');
+            if (!more) return;
+            var open = btn.getAttribute('aria-expanded') === 'true';
+            more.hidden = open;
+            btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+            btn.textContent = open ? 'もっと見る▽' : '閉じる△';
+        });
+    });
 })();

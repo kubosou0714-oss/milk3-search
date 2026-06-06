@@ -50,21 +50,12 @@
             border-radius: 12px;
             font-size: 16px;
         }
-        .mini-btn {
-            flex-shrink: 0;
-            white-space: nowrap;
-        }
-
-        .mini-form .btn-search-primary {
-            width: auto;
-            min-width: 140px;
-            padding: 14px 28px;
-            font-size: 16px;
-        }
+        .mini-btn { flex-shrink: 0; white-space: nowrap; }
+        .mini-form .btn-search-primary { width: auto; min-width: 120px; padding: 14px 24px; font-size: 16px; }
 
         .main-layout { display: flex; gap: 40px; align-items: flex-start; width: 100%; }
         .left-character-zone { flex-shrink: 0; position: sticky; top: 88px; align-self: flex-start; }
-        .center-cards-zone { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; max-width: 800px; }
+        .center-cards-zone { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
 
         .error-message {
             background: var(--white);
@@ -88,6 +79,7 @@
             transition: transform 0.2s, border-color 0.2s;
             width: 100%;
             min-width: 0;
+            gap: 16px;
         }
         .product-card:hover { transform: translateY(-3px); border-color: var(--main-pink); }
         .thumb-area {
@@ -106,84 +98,25 @@
         .thumb-area.has-image::before { display: none; }
         .thumb-img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
 
-        .info-area { flex: 1; min-width: 0; padding-left: 24px; display: flex; flex-direction: column; justify-content: space-between; gap: 12px; }
-        .title-text { font-size: 18px; font-weight: 800; line-height: 1.4; margin-bottom: 6px; word-break: break-word; }
+        .info-area { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+        .title-text { font-size: 18px; font-weight: 800; line-height: 1.4; margin-bottom: 4px; word-break: break-word; }
         .author-text { font-size: 13px; color: #767881; font-weight: 600; word-break: break-word; }
-        .meta-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
-        .price-text { font-size: 22px; font-weight: 900; }
+        .meta-bottom { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+        .price-text { font-size: 20px; font-weight: 900; }
         .price-text span { font-size: 12px; color: #a6a8b6; margin-left: 2px; }
-        .view-btn-badge { font-size: 13px; font-weight: 700; color: var(--main-pink); background: var(--light-pink); padding: 8px 20px; border-radius: 30px; flex-shrink: 0; }
 
         @media (max-width: 768px) {
-            .results-container {
-                padding: 16px;
-                gap: 16px;
-            }
-
-            .mini-search-box {
-                padding: 14px 16px;
-                border-radius: 16px;
-            }
-
-            .mini-form {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 12px;
-            }
-
-            .mini-btn {
-                width: 100%;
-            }
-
-            .main-layout {
-                flex-direction: column;
-                gap: 20px;
-            }
-
-            .left-character-zone {
-                position: static;
-                max-width: 110px;
-                margin: 0 auto;
-            }
-
-            .center-cards-zone {
-                max-width: 100%;
-            }
-
-            .product-card {
-                flex-direction: column;
-                padding: 16px;
-            }
-
-            .thumb-area {
-                width: 100%;
-                height: auto;
-                aspect-ratio: 1;
-                max-width: 100%;
-            }
-
-            .info-area {
-                padding-left: 0;
-            }
-
-            .title-text { font-size: 16px; }
-            .price-text { font-size: 20px; }
-
-            .meta-bottom {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .view-btn-badge {
-                width: 100%;
-                text-align: center;
-                padding: 12px 20px;
-            }
-
-            .error-message {
-                padding: 16px;
-                font-size: 14px;
-            }
+            .results-container { padding: 12px 16px 24px; gap: 12px; }
+            .mini-search-box { padding: 0; border: none; background: transparent; border-radius: 0; }
+            .mini-form { flex-direction: column; align-items: stretch; gap: 10px; }
+            .mini-form .btn-search-primary { width: 100%; min-width: 0; }
+            .main-layout { flex-direction: column; gap: 12px; }
+            .center-cards-zone { max-width: 100%; }
+            .product-card { padding: 14px; border-radius: 16px; align-items: flex-start; }
+            .thumb-area { width: 96px; height: 96px; border-radius: 12px; }
+            .title-text { font-size: 15px; }
+            .price-text { font-size: 18px; }
+            .error-message { padding: 16px; font-size: 14px; }
         }
     </style>
 </head>
@@ -205,22 +138,30 @@
         <div class="top-search-area" id="search">
             <div class="mini-search-box">
                 <form action="{{ url_for('results') }}" method="GET" class="mini-form">
-                    <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="他にお探しですか？♡" required autocomplete="off">
-                    <button type="submit" class="btn-search-primary mini-btn touch-btn">相談する</button>
+                    <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="キーワードを入力してね♡" required autocomplete="off">
+                    <button type="submit" class="btn-search-primary mini-btn touch-btn"><span class="btn-icon">🔍</span> 探す</button>
                 </form>
                 <div class="popular-keywords">
                     <div class="popular-keywords-title">人気の検索ワード</div>
                     <div class="keyword-chips">
-                        {% for word in popular_keywords %}
+                        {% for word in popular_keywords[:4] %}
                         <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
                         {% endfor %}
                     </div>
+                    <div class="keyword-chips keyword-chips--more" hidden>
+                        {% for word in popular_keywords[4:] %}
+                        <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
+                        {% endfor %}
+                    </div>
+                    {% if popular_keywords|length > 4 %}
+                    <button type="button" class="keyword-more-toggle touch-btn" aria-expanded="false">もっと見る▽</button>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
         <div class="main-layout">
-            <div class="left-character-zone">
+            <div class="left-character-zone left-character-zone--results">
                 <div class="comment-bubble">「こんなのはどうかしら？」</div>
                 <img src="{{ url_for('static', filename='ミルク立ち絵.png') }}" alt="ミルク主任" class="character-img" decoding="async">
             </div>
@@ -229,6 +170,7 @@
                 {% if error %}
                 <p class="error-message">{{ error }}</p>
                 {% elif results %}
+                <h2 class="results-section-title"><span class="star">★</span> おすすめ作品</h2>
                     {% for item in results %}
                     <a href="{{ item.url }}" class="product-card" target="_blank" rel="noopener noreferrer">
                         <div class="thumb-area{% if item.image_url %} has-image{% endif %}">
@@ -239,7 +181,7 @@
                         <div class="info-area">
                             <div>
                                 <div class="title-text">{{ item.title }}</div>
-                                <div class="author-text">{{ item.circle_name }}</div>
+                                <div class="author-text">サークル：{{ item.circle_name }}</div>
                                 {% if item.reasons %}
                                 <div class="recommend-reasons">
                                     <div class="recommend-reasons-title">おすすめ理由</div>
@@ -253,7 +195,7 @@
                             </div>
                             <div class="meta-bottom">
                                 <div class="price-text">{{ item.price }}<span>(税込)</span></div>
-                                <div class="view-btn-badge">商品を見る</div>
+                                <span class="btn-dlsite touch-btn">DLsiteで見る ↗</span>
                             </div>
                         </div>
                     </a>
