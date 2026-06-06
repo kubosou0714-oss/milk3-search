@@ -59,47 +59,35 @@
             border: 1px solid rgba(255, 143, 163, 0.3);
             border-radius: 16px;
             font-size: 16px;
-            margin-bottom: 25px;
-        }
-
-        .submit-btn {
-            width: 100%;
-            background: linear-gradient(135deg, var(--main-pink) 0%, var(--dark-pink) 100%);
-            color: var(--white);
-            border: none;
-            border-radius: 16px;
-            padding: 18px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 8px 20px rgba(251, 111, 146, 0.25);
+            margin-bottom: 16px;
         }
 
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
-                padding: 20px 16px 32px;
-                gap: 24px;
+                padding: 16px 16px 24px;
+                gap: 16px;
+                align-items: stretch;
+            }
+
+            .left-character-zone {
+                order: 2;
             }
 
             .consult-box {
-                padding: 24px 20px;
+                order: 1;
+                padding: 20px 16px;
                 border-radius: 20px;
                 max-width: 100%;
             }
 
-            h1 { font-size: 22px; }
-            .subtitle { font-size: 14px; margin-bottom: 20px; }
+            h1 { font-size: 20px; }
+            .subtitle { font-size: 13px; margin-bottom: 14px; }
 
             .search-input {
                 height: 52px;
                 font-size: 16px;
-                margin-bottom: 16px;
-            }
-
-            .submit-btn {
-                padding: 16px;
-                font-size: 16px;
+                margin-bottom: 12px;
             }
         }
     </style>
@@ -127,10 +115,37 @@
             <div class="subtitle">秘密のレコメンドカウンター</div>
             <form action="{{ url_for('results') }}" method="GET">
                 <input type="text" name="keyword" class="search-input" placeholder="キーワードを入力してね♡" required autocomplete="off">
-                <button type="submit" class="submit-btn touch-btn">相談する</button>
+                <button type="submit" class="btn-search-primary touch-btn">相談する</button>
             </form>
+            <div class="popular-keywords">
+                <div class="popular-keywords-title">人気の検索ワード</div>
+                <div class="keyword-chips">
+                    {% for word in popular_keywords %}
+                    <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
+
+    <section class="how-to-flow">
+        <h2 class="how-to-flow-title">ご利用の流れ</h2>
+        <div class="how-to-steps">
+            <div class="how-to-step">
+                <div class="how-to-step-num">1</div>
+                <div class="how-to-step-text">キーワードを入力</div>
+            </div>
+            <div class="how-to-step">
+                <div class="how-to-step-num">2</div>
+                <div class="how-to-step-text">ミルク主任が作品をご提案</div>
+            </div>
+            <div class="how-to-step">
+                <div class="how-to-step-num">3</div>
+                <div class="how-to-step-text">気になる作品をチェック</div>
+            </div>
+        </div>
+    </section>
+
     <script src="{{ url_for('static', filename='menu.js') }}"></script>
 </body>
 </html>

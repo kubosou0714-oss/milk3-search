@@ -12,8 +12,29 @@ app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
 IS_VERCEL = os.environ.get("VERCEL") == "1"
 MAX_RESULTS = 10 if IS_VERCEL else 30
 
+POPULAR_KEYWORDS = [
+    "男の娘",
+    "メス堕ち",
+    "催眠",
+    "NTR",
+    "寝取られ",
+    "巨乳",
+    "学園",
+    "ラブラブ",
+]
 
-def _works_to_results(works):
+
+def _recommendation_reasons(keyword: str, title: str, circle_name: str) -> list[str]:
+    reasons: list[str] = []
+    if keyword and keyword in title:
+        reasons.append(f"「{keyword}」のキーワードにマッチしています")
+    if circle_name and circle_name != "—":
+        reasons.append(f"サークル「{circle_name}」の作品です")
+    reasons.append("DLsiteトレンド検索からのおすすめです")
+    return reasons[:3]
+
+
+def _works_to_results(works, keyword: str = ""):
     return [
         {
             "title": w.title,
@@ -21,6 +42,7 @@ def _works_to_results(works):
             "price": w.price,
             "image_url": w.thumbnail_url,
             "url": w.product_url,
+            "reasons": _recommendation_reasons(keyword, w.title, w.circle_name),
         }
         for w in works[:MAX_RESULTS]
     ]
@@ -28,7 +50,7 @@ def _works_to_results(works):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", popular_keywords=POPULAR_KEYWORDS)
 
 
 @app.route("/results", methods=["GET"])
@@ -41,16 +63,18 @@ def results():
             keyword="",
             results=[],
             error="キーワードを入力してください。",
+            popular_keywords=POPULAR_KEYWORDS,
         )
 
     works, _search_url, error = fetch_works(keyword)
-    results_data = _works_to_results(works)
+    results_data = _works_to_results(works, keyword)
 
     return render_template(
         "results.html",
         keyword=keyword,
         results=results_data,
         error=error,
+        popular_keywords=POPULAR_KEYWORDS,
     )
 
 

@@ -52,15 +52,14 @@
         }
         .mini-btn {
             flex-shrink: 0;
-            background: linear-gradient(135deg, var(--main-pink) 0%, var(--dark-pink) 100%);
-            color: var(--white);
-            border: none;
-            border-radius: 12px;
-            padding: 14px 32px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
             white-space: nowrap;
+        }
+
+        .mini-form .btn-search-primary {
+            width: auto;
+            min-width: 140px;
+            padding: 14px 28px;
+            font-size: 16px;
         }
 
         .main-layout { display: flex; gap: 40px; align-items: flex-start; width: 100%; }
@@ -134,8 +133,6 @@
 
             .mini-btn {
                 width: 100%;
-                padding: 16px;
-                font-size: 16px;
             }
 
             .main-layout {
@@ -145,7 +142,7 @@
 
             .left-character-zone {
                 position: static;
-                max-width: 200px;
+                max-width: 110px;
                 margin: 0 auto;
             }
 
@@ -209,8 +206,16 @@
             <div class="mini-search-box">
                 <form action="{{ url_for('results') }}" method="GET" class="mini-form">
                     <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="他にお探しですか？♡" required autocomplete="off">
-                    <button type="submit" class="mini-btn touch-btn">相談する</button>
+                    <button type="submit" class="btn-search-primary mini-btn touch-btn">相談する</button>
                 </form>
+                <div class="popular-keywords">
+                    <div class="popular-keywords-title">人気の検索ワード</div>
+                    <div class="keyword-chips">
+                        {% for word in popular_keywords %}
+                        <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -235,6 +240,16 @@
                             <div>
                                 <div class="title-text">{{ item.title }}</div>
                                 <div class="author-text">{{ item.circle_name }}</div>
+                                {% if item.reasons %}
+                                <div class="recommend-reasons">
+                                    <div class="recommend-reasons-title">おすすめ理由</div>
+                                    <ul>
+                                        {% for reason in item.reasons %}
+                                        <li>{{ reason }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
                             </div>
                             <div class="meta-bottom">
                                 <div class="price-text">{{ item.price }}<span>(税込)</span></div>
