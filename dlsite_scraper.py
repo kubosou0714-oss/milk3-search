@@ -23,6 +23,11 @@ REQUEST_TIMEOUT = 8 if IS_VERCEL else 30
 PER_PAGE = 10 if IS_VERCEL else 30
 IMG_URL_RE = re.compile(r"//img\.dlsite\.jp/[^'\"\s>]+\.(?:jpg|jpeg|png|webp)", re.I)
 
+# DLsite がキーワードをジャンルへ変換し 0 件になる場合の代替語
+KEYWORD_ALIASES: dict[str, str] = {
+    "催眠": "暗示",
+}
+
 
 @dataclass
 class WorkItem:
@@ -33,6 +38,12 @@ class WorkItem:
     product_url: str
 
 
+def _resolve_keyword(keyword: str) -> str:
+    """API 検索用にキーワードを正規化する。"""
+    stripped = keyword.strip()
+    return KEYWORD_ALIASES.get(stripped, stripped)
+
+
 def build_search_url(keyword: str) -> str:
     """ユーザー向け DLsite 検索ページ URL。"""
     encoded = quote(keyword.strip(), safe="")
@@ -41,7 +52,7 @@ def build_search_url(keyword: str) -> str:
 
 def build_sapi_url(keyword: str, page: int = 1) -> str:
     """作品一覧 JSON（HTML 断片入り）の API URL。"""
-    encoded = quote(keyword.strip(), safe="")
+    encoded = quote(_resolve_keyword(keyword), safe="")
     return (
         f"{BASE}/{SITE}/fsr/ajax/=/language/jp/keyword/{encoded}"
         f"/order/trend/per_page/{PER_PAGE}/page/{page}"
@@ -141,7 +152,7 @@ def _parse_search_result_html(html_fragment: str) -> list[WorkItem]:
 
 def _find_sapi_url_from_page(soup: BeautifulSoup, keyword: str) -> str | None:
     """検索結果ページ内の data-url から maniax 用 API を探す。"""
-    encoded = quote(keyword.strip(), safe="")
+    encoded = quote(_resolve_keyword(keyword), safe="")
     pattern = re.compile(
         rf"/{SITE}/(?:fsr/ajax|sapi)/.*keyword/{re.escape(encoded)}", re.I
     )

@@ -143,7 +143,7 @@ img {
 
 .character-img {
     width: 100%;
-    max-width: 180px;
+    max-width: 360px;
     height: auto;
     object-fit: contain;
     animation: float 6s ease-in-out infinite;
@@ -450,10 +450,6 @@ img {
         padding: 16px 0;
         font-size: 16px;
         border-bottom: 1px solid rgba(255, 143, 163, 0.15);
-    }
-
-    .left-character-zone--results {
-        display: none;
     }
 
     .how-to-flow {
