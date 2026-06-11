@@ -31,6 +31,7 @@ KEYWORD_ALIASES: dict[str, str] = {
 
 @dataclass
 class WorkItem:
+    product_id: str
     title: str
     thumbnail_url: str
     circle_name: str
@@ -139,6 +140,7 @@ def _parse_search_result_html(html_fragment: str) -> list[WorkItem]:
 
         items.append(
             WorkItem(
+                product_id=product_id,
                 title=title or product_id,
                 thumbnail_url=_extract_thumbnail(li),
                 circle_name=circle_name,

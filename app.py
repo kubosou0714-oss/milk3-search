@@ -1,8 +1,9 @@
+import logging
 import os
 
 from flask import Flask, render_template, request
 
-from dlsite_scraper import fetch_works
+from search_expansion import fetch_expanded_works
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "public", "static")
@@ -10,6 +11,8 @@ STATIC_DIR = os.path.join(BASE_DIR, "public", "static")
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
 
 IS_VERCEL = os.environ.get("VERCEL") == "1"
+if os.environ.get("SEARCH_DEBUG", "0" if IS_VERCEL else "1") == "1":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 MAX_RESULTS = 10 if IS_VERCEL else 30
 
 POPULAR_KEYWORDS = [
@@ -94,7 +97,7 @@ def results():
             popular_keywords=POPULAR_KEYWORDS,
         )
 
-    works, _search_url, error = fetch_works(keyword)
+    works, _search_url, error, _search_terms = fetch_expanded_works(keyword)
     results_data = _works_to_results(works, keyword)
 
     return render_template(
