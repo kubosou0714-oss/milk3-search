@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>無料案内所 | あなたにぴったりの作品をレコメンド</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     <style>
         :root {
             --bg-color: #fdfbfe;
@@ -195,6 +195,6 @@
         </div>
     </section>
 
-    <script src="{{ url_for('static', filename='menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='menu.js', v=asset_version) }}"></script>
 </body>
 </html>

@@ -24,6 +24,34 @@ POPULAR_KEYWORDS = [
 ]
 
 
+def _asset_version() -> str:
+    """CSS/JS のキャッシュ bust 用。デプロイごとに自動更新される。"""
+    env_version = os.environ.get("VERCEL_GIT_COMMIT_SHA") or os.environ.get("ASSET_VERSION")
+    if env_version:
+        return env_version[:12]
+
+    latest = 0.0
+    for name in ("site.css", "menu.js"):
+        path = os.path.join(STATIC_DIR, name)
+        try:
+            latest = max(latest, os.path.getmtime(path))
+        except OSError:
+            continue
+    return str(int(latest)) if latest else "1"
+
+
+@app.context_processor
+def inject_asset_version():
+    return {"asset_version": _asset_version()}
+
+
+@app.after_request
+def prevent_html_cache(response):
+    if response.content_type and "text/html" in response.content_type:
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
+
 def _recommendation_reasons(keyword: str, title: str, circle_name: str) -> list[str]:
     reasons: list[str] = []
     if keyword and keyword in title:

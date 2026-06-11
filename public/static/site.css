@@ -149,6 +149,22 @@ img {
     animation: float 6s ease-in-out infinite;
 }
 
+/* 検索結果ページ：ミルク主任エリア */
+.left-character-zone.left-character-zone--results {
+    position: sticky;
+    top: 120px;
+    align-self: flex-start;
+    flex-shrink: 0;
+    width: auto;
+    max-width: none;
+}
+
+.left-character-zone--results .character-img {
+    width: clamp(432px, 19.5vw, 504px);
+    max-width: 504px;
+    height: auto;
+}
+
 /* 人気検索ワード */
 .popular-keywords {
     margin-top: 20px;
@@ -450,6 +466,16 @@ img {
         padding: 16px 0;
         font-size: 16px;
         border-bottom: 1px solid rgba(255, 143, 163, 0.15);
+    }
+
+    .left-character-zone.left-character-zone--results {
+        position: static;
+        width: 100%;
+    }
+
+    .left-character-zone--results .character-img {
+        width: clamp(180px, 45vw, 240px);
+        max-width: 240px;
     }
 
     .how-to-flow {
