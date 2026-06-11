@@ -1,11 +1,11 @@
-/* 共通：横スクロール防止 */
+/* 共通：横スクロール防止（overflow-x: hidden は sticky を壊すため clip を使用） */
 html {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100%;
 }
 
 body {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100%;
 }
 
@@ -150,6 +150,10 @@ img {
 }
 
 /* 検索結果ページ：ミルク主任エリア */
+.results-container .main-layout {
+    align-items: flex-start;
+}
+
 .left-character-zone.left-character-zone--results {
     position: sticky;
     top: 120px;
@@ -157,6 +161,7 @@ img {
     flex-shrink: 0;
     width: auto;
     max-width: none;
+    z-index: 5;
 }
 
 .left-character-zone--results .character-img {
@@ -468,14 +473,34 @@ img {
         border-bottom: 1px solid rgba(255, 143, 163, 0.15);
     }
 
+    .results-container .main-layout {
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
     .left-character-zone.left-character-zone--results {
-        position: static;
-        width: 100%;
+        position: sticky;
+        top: 88px;
+        width: auto;
+        flex-shrink: 0;
+        z-index: 5;
+    }
+
+    .left-character-zone--results .comment-bubble {
+        font-size: 11px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
     }
 
     .left-character-zone--results .character-img {
-        width: clamp(180px, 45vw, 240px);
-        max-width: 240px;
+        width: clamp(100px, 28vw, 160px);
+        max-width: 160px;
+    }
+
+    .results-container .center-cards-zone {
+        min-width: 0;
+        flex: 1;
     }
 
     .how-to-flow {
