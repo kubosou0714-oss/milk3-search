@@ -357,12 +357,9 @@ img {
     line-height: 1.2;
 }
 
-.product-card--av {
-    cursor: default;
-}
-
 .product-card--av:hover {
-    transform: none;
+    transform: translateY(-3px);
+    border-color: var(--main-pink);
 }
 
 .btn-av {
