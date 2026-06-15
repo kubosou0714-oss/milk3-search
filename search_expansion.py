@@ -1,4 +1,4 @@
-"""辞書ベースの検索語拡張とスコアリング。"""
+"""辞書ベースの検索意図解析・拡張・スコアリング。"""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
+from typing import Any
 
 from dlsite_scraper import WorkItem, build_search_url, fetch_works
 
@@ -15,68 +16,125 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DICTIONARY_PATH = os.path.join(BASE_DIR, "data", "fetish_dictionary.json")
 
 IS_VERCEL = os.environ.get("VERCEL") == "1"
-MAX_SEARCH_TERMS = 6 if IS_VERCEL else 8
-MAX_ALIASES_PER_ENTRY = 4 if IS_VERCEL else 6
-MAX_RELATED_PER_ENTRY = 2
-LONG_QUERY_LEN = 40
+MAX_SEARCH_QUERIES = 4 if IS_VERCEL else 5
+RESULTS_PER_QUERY = 12 if IS_VERCEL else 20
+MAX_TOTAL_FETCHED = 30 if IS_VERCEL else 50
+MAX_DISPLAY_RESULTS = 30 if IS_VERCEL else 50
+INITIAL_DISPLAY_COUNT = 10
+LOAD_MORE_STEP = 10
 
-SCORE_ORIGINAL_TITLE = 100
-SCORE_ORIGINAL_TAG = 80
-SCORE_ORIGINAL_DESC = 50
-SCORE_ALIAS = 40
-SCORE_RELATED = 15
-SCORE_TREND_ONLY = 5
+PRIMARY_CATEGORIES = {"character", "mind_control"}
+REQUIRED_CATEGORIES = {"situation", "act"}
+OPTIONAL_CATEGORIES = {"outcome", "mood"}
+
+SCORE_PRIMARY_EXACT_TITLE = 120
+SCORE_PRIMARY_ALIAS_TITLE = 110
+SCORE_PRIMARY_STRONG_TITLE = 100
+SCORE_PRIMARY_TAG = 100
+SCORE_PRIMARY_META = 70
+SCORE_REQUIRED_TITLE = 90
+SCORE_REQUIRED_META = 50
+SCORE_OPTIONAL = 25
+SCORE_RELATED = 8
+SCORE_TREND = 3
+
+MIND_CONTROL_SEARCH_QUERIES = ["催眠", "洗脳", "暗示", "常識改変", "精神操作"]
+
+MIN_SCORE_NORMAL = 40
+MIN_SCORE_LONG = 60
+MIN_RESULTS_BEFORE_FALLBACK = 5
+FALLBACK_MIN_SCORE = 15
+LONG_QUERY_LEN = 15
 
 
 @dataclass
 class DictionaryEntry:
     key: str
+    category: str
+    priority: int
+    concept_group: str = ""
     aliases: list[str] = field(default_factory=list)
+    strong_aliases: list[str] = field(default_factory=list)
     related: list[str] = field(default_factory=list)
-
-    def alias_terms(self) -> list[str]:
-        return list(self.aliases)
-
-    def related_terms(self) -> list[str]:
-        return list(self.related)
 
 
 @dataclass
-class DetectedMatch:
+class TextMatch:
     entry: DictionaryEntry
     matched_text: str
-    match_kind: str  # "key" | "alias" | "related"
+    match_kind: str  # "key" | "alias"
+
+
+@dataclass
+class SearchIntent:
+    query: str
+    primary_intent: list[str] = field(default_factory=list)
+    required_keywords: list[str] = field(default_factory=list)
+    optional_keywords: list[str] = field(default_factory=list)
+    ignored_words: list[str] = field(default_factory=list)
+    search_queries: list[str] = field(default_factory=list)
+    related_keywords: list[str] = field(default_factory=list)
+    strong_aliases: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "primaryIntent": self.primary_intent,
+            "requiredKeywords": self.required_keywords,
+            "optionalKeywords": self.optional_keywords,
+            "ignoredWords": self.ignored_words,
+            "searchQueries": self.search_queries,
+            "relatedKeywords": self.related_keywords,
+            "strongAliases": self.strong_aliases,
+        }
 
 
 @dataclass
 class ScoredWork:
     work: WorkItem
     score: int
-    tier: int
+    has_primary: bool
+    has_required: bool
+    has_optional: bool
+    has_related: bool
     score_reason: str
+    fetch_order: int = 9999
+    is_fallback: bool = False
     matched_terms: list[str] = field(default_factory=list)
 
+    @property
+    def has_content_match(self) -> bool:
+        return self.has_primary or self.has_required or self.has_optional
 
-@dataclass
-class SearchContext:
-    query: str
-    primary_keys: set[str]
-    alias_terms: set[str]
-    related_terms: set[str]
-    detected: list[DetectedMatch]
+    @property
+    def is_related_only(self) -> bool:
+        return self.has_related and not self.has_content_match
+
+    @property
+    def is_trend_only(self) -> bool:
+        return not self.has_content_match and not self.has_related
 
 
-def _load_dictionary() -> list[DictionaryEntry]:
+def _load_dictionary() -> tuple[list[DictionaryEntry], list[str]]:
     with open(DICTIONARY_PATH, encoding="utf-8") as f:
         payload = json.load(f)
-    return [
+    ignored = payload.get("ignored", [])
+    entries = [
         DictionaryEntry(
             key=item["key"],
+            category=item.get("category", "outcome"),
+            priority=int(item.get("priority", 50)),
+            concept_group=item.get("conceptGroup", ""),
             aliases=item.get("aliases", []),
+            strong_aliases=item.get("strongAliases", []),
             related=item.get("related", []),
         )
         for item in payload.get("entries", [])
     ]
+    return entries, ignored
+
+
+def _entry_by_key(entries: list[DictionaryEntry]) -> dict[str, DictionaryEntry]:
+    return {e.key: e for e in entries}
 
 
 def _term_index(entries: list[DictionaryEntry]) -> dict[str, DictionaryEntry]:
@@ -86,268 +144,574 @@ def _term_index(entries: list[DictionaryEntry]) -> dict[str, DictionaryEntry]:
         for alias in entry.aliases:
             if alias not in index:
                 index[alias] = entry
+        for strong in entry.strong_aliases:
+            if strong not in index:
+                index[strong] = entry
     return index
 
 
-def _primary_key_index(entries: list[DictionaryEntry]) -> dict[str, str]:
-    """語 → その語が primary key であるエントリの key。"""
-    mapping: dict[str, str] = {}
-    for entry in entries:
-        mapping[entry.key] = entry.key
-    return mapping
+def _primary_compatible_terms(entry: DictionaryEntry) -> list[str]:
+    return [entry.key, *entry.aliases, *entry.strong_aliases]
 
 
-def detect_terms(query: str, entries: list[DictionaryEntry] | None = None) -> list[DetectedMatch]:
-    """入力文から辞書に登録された語を検出する（key / alias 優先）。"""
-    if entries is None:
-        entries = _load_dictionary()
+def _concept_group_entries(entries: list[DictionaryEntry], group: str) -> list[DictionaryEntry]:
+    if not group:
+        return []
+    return [e for e in entries if e.concept_group == group]
 
-    primary_keys = _primary_key_index(entries)
-    matches: list[DetectedMatch] = []
-    seen_entries: set[str] = set()
-    is_long = len(query.strip()) > LONG_QUERY_LEN
 
-    key_alias_terms: list[tuple[str, DictionaryEntry, str]] = []
-    for entry in entries:
-        key_alias_terms.append((entry.key, entry, "key"))
-        for alias in entry.aliases:
-            key_alias_terms.append((alias, entry, "alias"))
-
-    key_alias_terms.sort(key=lambda item: len(item[0]), reverse=True)
-
-    for term, entry, kind in key_alias_terms:
-        if entry.key in seen_entries:
+def _intent_primary_entries(intent: SearchIntent, entries: list[DictionaryEntry]) -> list[DictionaryEntry]:
+    by_key = _entry_by_key(entries)
+    seen: set[str] = set()
+    result: list[DictionaryEntry] = []
+    for pkey in intent.primary_intent:
+        entry = by_key.get(pkey)
+        if not entry or entry.key in seen:
             continue
-        if term and term in query:
-            matches.append(DetectedMatch(entry=entry, matched_text=term, match_kind=kind))
-            seen_entries.add(entry.key)
+        seen.add(entry.key)
+        if entry.concept_group:
+            for ge in _concept_group_entries(entries, entry.concept_group):
+                if ge.key not in seen:
+                    seen.add(ge.key)
+                    result.append(ge)
+        else:
+            result.append(entry)
+    return result
 
-    if is_long:
-        related_terms: list[tuple[str, DictionaryEntry, str]] = []
-        for entry in entries:
-            if entry.key in seen_entries:
-                continue
-            for related in entry.related:
-                related_terms.append((related, entry, "related"))
-        related_terms.sort(key=lambda item: len(item[0]), reverse=True)
 
-        for term, entry, kind in related_terms:
-            if entry.key in seen_entries:
-                continue
-            if not term or term not in query:
-                continue
-            if term in primary_keys and primary_keys[term] != entry.key:
-                continue
-            matches.append(DetectedMatch(entry=entry, matched_text=term, match_kind=kind))
-            seen_entries.add(entry.key)
+def _mind_control_search_queries(matched_term: str | None = None) -> list[str]:
+    queries = list(MIND_CONTROL_SEARCH_QUERIES)
+    if matched_term and matched_term in queries:
+        queries = [matched_term] + [q for q in queries if q != matched_term]
+    return queries[:MAX_SEARCH_QUERIES]
+
+
+def _collect_strong_aliases(entries: list[DictionaryEntry], primary_keys: list[str]) -> list[str]:
+    by_key = _entry_by_key(entries)
+    terms: list[str] = []
+    seen: set[str] = set()
+    for pkey in primary_keys:
+        entry = by_key.get(pkey)
+        if not entry:
+            continue
+        for term in entry.strong_aliases:
+            if term not in seen:
+                seen.add(term)
+                terms.append(term)
+    return terms
+
+
+def _find_ignored(query: str, ignored: list[str]) -> list[str]:
+    found: list[str] = []
+    for word in sorted(ignored, key=len, reverse=True):
+        if word and word in query and word not in found:
+            found.append(word)
+    return found
+
+
+def _find_text_matches(query: str, entries: list[DictionaryEntry]) -> list[TextMatch]:
+    """文中に直接含まれる key / alias / strongAlias のみ検出。"""
+    matches: list[TextMatch] = []
+
+    for entry in entries:
+        if entry.key in query:
+            matches.append(TextMatch(entry=entry, matched_text=entry.key, match_kind="key"))
+            continue
+        matched = False
+        for alias in sorted(entry.aliases, key=len, reverse=True):
+            if alias in query:
+                matches.append(TextMatch(entry=entry, matched_text=alias, match_kind="alias"))
+                matched = True
+                break
+        if matched:
+            continue
+        for strong in sorted(entry.strong_aliases, key=len, reverse=True):
+            if strong in query:
+                matches.append(TextMatch(entry=entry, matched_text=strong, match_kind="strong"))
+                break
 
     return matches
 
 
-def _resolve_primary_entries(
-    query: str, detected: list[DetectedMatch], entries: list[DictionaryEntry]
-) -> list[DictionaryEntry]:
-    if detected:
-        return [m.entry for m in detected]
-
-    index = _term_index(entries)
-    entry = index.get(query)
-    return [entry] if entry else []
-
-
-def build_search_terms(query: str) -> tuple[list[str], list[DetectedMatch], SearchContext]:
-    """検索に使う語リストとスコアリング用コンテキストを組み立てる。"""
+def analyze_search_intent(query: str) -> SearchIntent:
+    """入力文から検索意図を解析する。"""
     query = query.strip()
-    entries = _load_dictionary()
-    detected = detect_terms(query, entries)
-    primary_entries = _resolve_primary_entries(query, detected, entries)
-    is_long = len(query) > LONG_QUERY_LEN or len(detected) > 1 or len(detected) > 1
+    entries, ignored_list = _load_dictionary()
+    by_key = _entry_by_key(entries)
 
-    terms: list[str] = []
-    seen: set[str] = set()
+    intent = SearchIntent(query=query)
+    intent.ignored_words = _find_ignored(query, ignored_list)
 
-    def add(term: str) -> None:
-        t = term.strip()
-        if t and t not in seen:
-            seen.add(t)
-            terms.append(t)
+    matches = _find_text_matches(query, entries)
+    if not matches and query in by_key:
+        matches = [TextMatch(entry=by_key[query], matched_text=query, match_kind="key")]
 
-    primary_keys: set[str] = set()
-    alias_terms: set[str] = set()
-    related_terms: set[str] = set()
+    is_short = len(query) <= LONG_QUERY_LEN and len(matches) <= 1
 
-    if primary_entries:
-        if is_long:
-            terms.clear()
-            seen.clear()
-            for entry in primary_entries:
-                primary_keys.add(entry.key)
-                add(entry.key)
-            for entry in primary_entries:
-                for alias in entry.alias_terms()[:2]:
-                    alias_terms.add(alias)
-                    add(alias)
-            for entry in primary_entries:
-                for related in entry.related_terms()[:MAX_RELATED_PER_ENTRY]:
-                    related_terms.add(related)
-                    add(related)
+    if is_short and (query in by_key or matches):
+        main_entry = by_key.get(query) or matches[0].entry
+        matched_term = query if query in _primary_compatible_terms(main_entry) else matches[0].matched_text
+        primary = [main_entry.key]
+        required = []
+        optional = []
+        if main_entry.category in OPTIONAL_CATEGORIES:
+            for alias in main_entry.aliases[:2]:
+                if alias not in optional:
+                    optional.append(alias)
+        intent.primary_intent = primary
+        intent.required_keywords = required
+        intent.optional_keywords = optional
+        intent.strong_aliases = _collect_strong_aliases(entries, primary)
+        related_pool = [rel for rel in main_entry.related if rel not in primary]
+        intent.related_keywords = related_pool
+        if main_entry.concept_group == "mind_control":
+            intent.search_queries = _mind_control_search_queries(matched_term)
         else:
-            for entry in primary_entries:
-                primary_keys.add(entry.key)
-                add(entry.key)
-                for alias in entry.alias_terms()[:MAX_ALIASES_PER_ENTRY]:
-                    alias_terms.add(alias)
-                    add(alias)
-    else:
-        add(query)
+            queries: list[str] = []
+            seen_q: set[str] = set()
 
-    ctx = SearchContext(
-        query=query,
-        primary_keys=primary_keys,
-        alias_terms=alias_terms,
-        related_terms=related_terms,
-        detected=detected,
-    )
-    return terms[:MAX_SEARCH_TERMS], detected, ctx
+            def add_q(term: str) -> None:
+                if term and term not in seen_q:
+                    seen_q.add(term)
+                    queries.append(term)
+
+            add_q(main_entry.key)
+            for alias in main_entry.aliases:
+                if len(queries) >= MAX_SEARCH_QUERIES:
+                    break
+                add_q(alias)
+            intent.search_queries = queries[:MAX_SEARCH_QUERIES]
+        intent.ignored_words = _find_ignored(query, ignored_list)
+        return intent
+
+    primary: list[str] = []
+    required: list[str] = []
+    optional: list[str] = []
+
+    for m in matches:
+        key = m.entry.key
+        if m.entry.category in PRIMARY_CATEGORIES and key not in primary:
+            primary.append(key)
+
+    for m in matches:
+        key = m.entry.key
+        if key in primary:
+            continue
+        if m.entry.category in REQUIRED_CATEGORIES and key not in required:
+            required.append(key)
+        elif m.entry.category in OPTIONAL_CATEGORIES and key not in optional:
+            optional.append(key)
+
+    if not primary and required:
+        primary.append(required.pop(0))
+
+    if not primary and optional:
+        promoted = max(optional, key=lambda k: by_key[k].priority if k in by_key else 0)
+        optional = [o for o in optional if o != promoted]
+        primary.append(promoted)
+
+    for pkey in list(primary):
+        entry = by_key[pkey]
+        for alias in entry.aliases:
+            if alias in query and alias != entry.key and alias not in required and alias not in optional:
+                required.append(alias)
+        for strong in entry.strong_aliases:
+            if strong in query and strong not in primary and strong not in required and strong not in optional:
+                pass  # strongAlias は primary 互換。required には入れない
+
+    ordered_optional: list[str] = []
+    for pkey in primary:
+        entry = by_key[pkey]
+        for rel in entry.related:
+            if rel in by_key and rel not in primary and rel not in required:
+                rel_entry = by_key[rel]
+                if rel_entry.category in OPTIONAL_CATEGORIES and rel not in ordered_optional:
+                    ordered_optional.append(rel)
+    for o in optional:
+        if o not in ordered_optional:
+            ordered_optional.append(o)
+    optional = ordered_optional
+
+    intent.primary_intent = primary
+    intent.required_keywords = required
+    intent.optional_keywords = optional
+    intent.strong_aliases = _collect_strong_aliases(entries, primary)
+
+    related_pool: list[str] = []
+    for pkey in primary:
+        entry = by_key[pkey]
+        for rel in entry.related:
+            if rel not in primary and rel not in required and rel not in optional:
+                related_pool.append(rel)
+    intent.related_keywords = list(dict.fromkeys(related_pool))
+
+    queries: list[str] = []
+    seen_q: set[str] = set()
+
+    def add_query(term: str) -> None:
+        if term and term not in seen_q:
+            seen_q.add(term)
+            queries.append(term)
+
+    mind_control_keys = [
+        k for k in primary if by_key.get(k) and by_key[k].concept_group == "mind_control"
+    ]
+    if mind_control_keys and len(primary) == 1:
+        matched = next(
+            (m.matched_text for m in matches if m.entry.concept_group == "mind_control"),
+            mind_control_keys[0],
+        )
+        intent.search_queries = _mind_control_search_queries(matched)
+        return intent
+
+    for k in primary:
+        add_query(k)
+    if mind_control_keys:
+        matched = next(
+            (m.matched_text for m in matches if m.entry.concept_group == "mind_control"),
+            None,
+        )
+        for q in _mind_control_search_queries(matched):
+            if len(queries) >= MAX_SEARCH_QUERIES:
+                break
+            add_query(q)
+    for k in required:
+        add_query(k)
+    detected_optional = [
+        o for o in optional
+        if o in query or (o in by_key and any(a in query for a in by_key[o].aliases))
+    ]
+    related_optional = [o for o in optional if o not in detected_optional]
+    for k in detected_optional:
+        if len(queries) >= MAX_SEARCH_QUERIES:
+            break
+        add_query(k)
+    if related_optional and len(queries) < MAX_SEARCH_QUERIES:
+        if len(queries) < len(primary) + len(required) + 1:
+            add_query(related_optional[0])
+
+    if not queries and query:
+        add_query(query)
+
+    intent.search_queries = queries[:MAX_SEARCH_QUERIES]
+    return intent
 
 
 def _work_text(work: WorkItem) -> str:
     return f"{work.title}\n{work.circle_name}"
 
 
-def _score_work(work: WorkItem, ctx: SearchContext, search_term: str) -> ScoredWork:
-    text = _work_text(work)
+def _term_in_title(term: str, title: str) -> bool:
+    return bool(term and term in title)
+
+
+def _term_in_meta(term: str, text: str, title: str) -> bool:
+    return bool(term and term in text and term not in title)
+
+
+def _entry_terms(entry: DictionaryEntry) -> list[str]:
+    return _primary_compatible_terms(entry)
+
+
+def _score_primary_for_entry(
+    entry: DictionaryEntry,
+    title: str,
+    circle: str,
+    text: str,
+) -> tuple[int, bool, list[str]]:
+    """primary / alias / strongAlias / conceptGroup 代表語の一致をスコアリング。"""
+    if _term_in_title(entry.key, title):
+        return SCORE_PRIMARY_EXACT_TITLE, True, [
+            f"primary exact title match: {entry.key} +{SCORE_PRIMARY_EXACT_TITLE}"
+        ]
+
+    for alias in entry.aliases:
+        if _term_in_title(alias, title):
+            return SCORE_PRIMARY_ALIAS_TITLE, True, [
+                f"primary alias title match: {alias} +{SCORE_PRIMARY_ALIAS_TITLE}"
+            ]
+
+    for strong in entry.strong_aliases:
+        if _term_in_title(strong, title):
+            return SCORE_PRIMARY_STRONG_TITLE, True, [
+                f"strongAlias title match: {strong} +{SCORE_PRIMARY_STRONG_TITLE}"
+            ]
+
+    for term in _primary_compatible_terms(entry):
+        if circle and circle != "—" and term in circle:
+            return SCORE_PRIMARY_TAG, True, [
+                f"primary tag match: {term} +{SCORE_PRIMARY_TAG}"
+            ]
+
+    for term in _primary_compatible_terms(entry):
+        if _term_in_meta(term, text, title):
+            return SCORE_PRIMARY_META, True, [
+                f"primary description match: {term} +{SCORE_PRIMARY_META}"
+            ]
+
+    return 0, False, []
+
+
+def _is_long_search(intent: SearchIntent) -> bool:
+    return (
+        len(intent.query) > LONG_QUERY_LEN
+        or len(intent.primary_intent) > 1
+        or bool(intent.required_keywords)
+    )
+
+
+def _min_display_score(intent: SearchIntent) -> int:
+    return MIN_SCORE_LONG if _is_long_search(intent) else MIN_SCORE_NORMAL
+
+
+def _score_work(work: WorkItem, intent: SearchIntent, search_term: str) -> ScoredWork:
+    entries, _ = _load_dictionary()
+    by_key = _entry_by_key(entries)
     title = work.title
+    circle = work.circle_name
+    text = _work_text(work)
     reasons: list[str] = []
     score = 0
-    tier = 0
+    has_primary = False
+    has_required = False
+    has_optional = False
+    has_related = False
 
-    original_terms = {ctx.query, *ctx.primary_keys}
+    primary_entries = _intent_primary_entries(intent, entries)
+    if not primary_entries:
+        for pkey in intent.primary_intent:
+            entry = by_key.get(pkey)
+            if entry:
+                primary_entries.append(entry)
 
-    for term in sorted(original_terms, key=len, reverse=True):
-        if term and term in title:
-            score += SCORE_ORIGINAL_TITLE
-            tier = max(tier, 3)
-            reasons.append(f"original keyword '{term}' in title (+{SCORE_ORIGINAL_TITLE})")
+    for entry in primary_entries:
+        pts, matched, preasons = _score_primary_for_entry(entry, title, circle, text)
+        if matched:
+            score += pts
+            has_primary = True
+            reasons.extend(preasons)
             break
-        if term and term in text and term not in title:
-            score += SCORE_ORIGINAL_DESC
-            tier = max(tier, 2)
-            reasons.append(f"original keyword '{term}' in metadata (+{SCORE_ORIGINAL_DESC})")
+
+    for rkey in intent.required_keywords:
+        entry = by_key.get(rkey)
+        terms = _entry_terms(entry) if entry else [rkey]
+        for term in terms:
+            if _term_in_title(term, title):
+                score += SCORE_REQUIRED_TITLE
+                has_required = True
+                reasons.append(f"requiredKeyword title match: {term} +{SCORE_REQUIRED_TITLE}")
+                break
+            if circle and circle != "—" and term in circle:
+                score += SCORE_REQUIRED_META + 30
+                has_required = True
+                reasons.append(f"requiredKeyword tag match: {term} +{SCORE_REQUIRED_META + 30}")
+                break
+            if _term_in_meta(term, text, title):
+                score += SCORE_REQUIRED_META
+                has_required = True
+                reasons.append(f"requiredKeyword description match: {term} +{SCORE_REQUIRED_META}")
+                break
+
+    matched_optional: set[str] = set()
+    for okey in intent.optional_keywords:
+        entry = by_key.get(okey)
+        terms = _entry_terms(entry) if entry else [okey]
+        for term in terms:
+            if term in matched_optional:
+                continue
+            if term in title or (term in text and term not in title):
+                score += SCORE_OPTIONAL
+                has_optional = True
+                matched_optional.add(term)
+                reasons.append(f"optionalKeyword match: {term} +{SCORE_OPTIONAL}")
+                break
+
+    for rkey in intent.related_keywords:
+        if rkey in title or (rkey in text and rkey not in title):
+            score += SCORE_RELATED
+            has_related = True
+            reasons.append(f"relatedKeyword match: {rkey} +{SCORE_RELATED}")
             break
 
-    if tier < 3:
-        for alias in sorted(ctx.alias_terms, key=len, reverse=True):
-            if alias in title:
-                score += SCORE_ALIAS
-                tier = max(tier, 2)
-                reasons.append(f"alias '{alias}' in title (+{SCORE_ALIAS})")
-                break
-            if alias in text:
-                score += SCORE_ALIAS // 2
-                tier = max(tier, 2)
-                reasons.append(f"alias '{alias}' in metadata (+{SCORE_ALIAS // 2})")
-                break
-
-    if tier < 2 and ctx.related_terms:
-        for related in sorted(ctx.related_terms, key=len, reverse=True):
-            if related in title:
-                score += SCORE_RELATED
-                tier = max(tier, 1)
-                reasons.append(f"related '{related}' in title (+{SCORE_RELATED})")
-                break
-
-    if search_term in ctx.primary_keys or search_term == ctx.query:
-        reasons.append(f"found via primary search '{search_term}' (+{SCORE_TREND_ONLY})")
-    elif search_term in ctx.alias_terms:
-        reasons.append(f"found via alias search '{search_term}' (+{SCORE_TREND_ONLY})")
-    elif search_term in ctx.related_terms:
-        reasons.append(f"found via related search '{search_term}' (+{SCORE_TREND_ONLY})")
-    else:
-        reasons.append(f"found via other search '{search_term}' (+{SCORE_TREND_ONLY})")
-
-    score += SCORE_TREND_ONLY
-
-    if tier == 0:
-        reasons.append("no primary/alias/related match in title (low relevance)")
-
-    if tier == 0 and search_term not in ctx.primary_keys and search_term not in ctx.alias_terms:
-        score = min(score, SCORE_RELATED)
+    score += SCORE_TREND
+    reasons.append(f"DLsite trend/recommendation: {search_term} +{SCORE_TREND}")
 
     reason = "; ".join(reasons)
     return ScoredWork(
         work=work,
         score=score,
-        tier=tier,
+        has_primary=has_primary,
+        has_required=has_required,
+        has_optional=has_optional,
+        has_related=has_related,
         score_reason=reason,
         matched_terms=[search_term],
     )
 
 
+def _can_fallback(item: ScoredWork) -> bool:
+    """required / optional / related のいずれかがあれば fallback 候補（trend のみは除外）。"""
+    if item.is_trend_only:
+        return False
+    return item.has_required or item.has_optional or item.has_related
+
+
+def _apply_result_filter(ranked: list[ScoredWork], intent: SearchIntent) -> list[ScoredWork]:
+    """最低スコア・primary 一致で足切り。件数不足時のみ fallback を下位に追加。"""
+    min_score = _min_display_score(intent)
+    main: list[ScoredWork] = []
+    fallback: list[ScoredWork] = []
+
+    for item in ranked:
+        if item.is_trend_only:
+            continue
+
+        if intent.primary_intent and not item.has_primary:
+            if _can_fallback(item):
+                fallback.append(item)
+            continue
+
+        if item.is_related_only:
+            fallback.append(item)
+            continue
+
+        if item.score < min_score and not item.has_primary:
+            if _can_fallback(item):
+                fallback.append(item)
+            continue
+
+        main.append(item)
+
+    if len(main) < MIN_RESULTS_BEFORE_FALLBACK:
+        seen_ids = {s.work.product_id for s in main}
+        for item in sorted(fallback, key=_sort_scored_work):
+            if len(main) >= MIN_RESULTS_BEFORE_FALLBACK:
+                break
+            if item.work.product_id in seen_ids:
+                continue
+            item.is_fallback = True
+            item.score_reason = f"[fallback] {item.score_reason}"
+            main.append(item)
+            seen_ids.add(item.work.product_id)
+
+    return sorted(main, key=_sort_scored_work)[:MAX_DISPLAY_RESULTS]
+
+
+def _sort_scored_work(item: ScoredWork) -> tuple:
+    """スコア優先、同帯域は DLsite 取得順を維持。"""
+    score_band = -(item.score // 10)
+    return (item.is_fallback, not item.has_primary, not item.has_required, score_band, item.fetch_order)
+
+
 def _merge_scored(existing: ScoredWork | None, incoming: ScoredWork) -> ScoredWork:
     if existing is None:
         return incoming
-    if (incoming.tier, incoming.score) > (existing.tier, existing.score):
-        merged_terms = list(dict.fromkeys(existing.matched_terms + incoming.matched_terms))
-        incoming.matched_terms = merged_terms
+    incoming.fetch_order = min(existing.fetch_order, incoming.fetch_order)
+    if (incoming.has_primary, incoming.has_required, incoming.score) > (
+        existing.has_primary,
+        existing.has_required,
+        existing.score,
+    ):
+        incoming.matched_terms = list(dict.fromkeys(existing.matched_terms + incoming.matched_terms))
+        incoming.has_required = existing.has_required or incoming.has_required
+        incoming.has_optional = existing.has_optional or incoming.has_optional
+        incoming.has_related = existing.has_related or incoming.has_related
         return incoming
     existing.matched_terms = list(dict.fromkeys(existing.matched_terms + incoming.matched_terms))
+    existing.has_primary = existing.has_primary or incoming.has_primary
+    existing.has_required = existing.has_required or incoming.has_required
+    existing.has_optional = existing.has_optional or incoming.has_optional
+    existing.has_related = existing.has_related or incoming.has_related
+    existing.fetch_order = min(existing.fetch_order, incoming.fetch_order)
+    if incoming.score > existing.score:
+        existing.score = incoming.score
+        existing.score_reason = incoming.score_reason
     return existing
 
 
-def _log_top_results(query: str, ranked: list[ScoredWork], limit: int = 5) -> None:
-    logger.info("search debug: query=%r top %d results", query, limit)
-    for i, item in enumerate(ranked[:limit], 1):
+def _log_search_debug(
+    intent: SearchIntent,
+    request_count: int,
+    total_fetched: int,
+    ranked: list[ScoredWork],
+) -> None:
+    logger.info("search debug: user input=%r", intent.query)
+    logger.info("  primaryIntent=%s", intent.primary_intent)
+    logger.info("  strongAliases=%s", intent.strong_aliases)
+    logger.info("  requiredKeywords=%s", intent.required_keywords)
+    logger.info("  optionalKeywords=%s", intent.optional_keywords)
+    logger.info("  ignoredWords=%s", intent.ignored_words)
+    logger.info("  final searchQueries=%s", intent.search_queries)
+    logger.info("  minDisplayScore=%d", _min_display_score(intent))
+    logger.info("  total fetched count=%d", total_fetched)
+    logger.info("  filtered result count=%d", len(ranked))
+    logger.info("  initially displayed count=%d", min(INITIAL_DISPLAY_COUNT, len(ranked)))
+    logger.info("  max display count=%d", MAX_DISPLAY_RESULTS)
+    logger.info("  number of DLsite requests=%d", request_count)
+    for i, item in enumerate(ranked[:10], 1):
         logger.info(
-            "  #%d tier=%d score=%d title=%r reason=%s",
+            "  top #%d score=%d primary=%s fallback=%s title=%r",
             i,
-            item.tier,
             item.score,
+            item.has_primary,
+            item.is_fallback,
             item.work.title[:60],
-            item.score_reason,
         )
+        logger.info("    scoreReason: %s", item.score_reason)
 
 
-def _rank_works(query: str) -> tuple[list[ScoredWork], str, str | None, list[str]]:
-    search_terms, _detected, ctx = build_search_terms(query)
+def _rank_works(query: str) -> tuple[list[ScoredWork], str, str | None, SearchIntent]:
+    intent = analyze_search_intent(query)
     search_url = build_search_url(query)
+
+    if not intent.search_queries and query:
+        intent.search_queries = [query]
 
     merged: dict[str, ScoredWork] = {}
     last_error: str | None = None
+    request_count = 0
+    fetch_order = 0
+    total_fetched = 0
 
-    for term in search_terms:
-        works, _, error = fetch_works(term)
+    for term in intent.search_queries:
+        if total_fetched >= MAX_TOTAL_FETCHED:
+            break
+        request_count += 1
+        works, _, error = fetch_works(term, per_page=RESULTS_PER_QUERY)
         if not works and error:
             last_error = error
 
-        for work in works:
+        for work in works[:RESULTS_PER_QUERY]:
             pid = work.product_id
-            scored = _score_work(work, ctx, term)
+            is_new = pid not in merged
+            if is_new and total_fetched >= MAX_TOTAL_FETCHED:
+                break
+            fetch_order += 1
+            if is_new:
+                total_fetched += 1
+            scored = _score_work(work, intent, term)
+            scored.fetch_order = fetch_order
             merged[pid] = _merge_scored(merged.get(pid), scored)
 
     if not merged:
-        return [], search_url, last_error or "検索結果が 0 件でした。キーワードを変えて試してください。", search_terms
+        return [], search_url, last_error or "検索結果が 0 件でした。キーワードを変えて試してください。", intent
 
-    ranked = sorted(merged.values(), key=lambda s: (s.tier, s.score), reverse=True)
-    return ranked, search_url, None, search_terms
+    ranked = sorted(merged.values(), key=_sort_scored_work)
+    filtered = _apply_result_filter(ranked, intent)
+
+    _log_search_debug(intent, request_count, total_fetched, filtered)
+    return filtered, search_url, None, intent
 
 
 def fetch_expanded_works(
     query: str,
-) -> tuple[list[WorkItem], str, str | None, list[str]]:
-    """
-    辞書拡張＋スコアリングで作品一覧を取得する。
-
-    Returns:
-        (作品一覧, 検索ページURL, エラー or None, 使用した検索語)
-    """
+) -> tuple[list[ScoredWork], str, str | None, list[str]]:
     query = query.strip()
     if not query:
         return [], build_search_url(""), "キーワードを入力してください。", []
 
-    ranked, search_url, error, search_terms = _rank_works(query)
+    ranked, search_url, error, intent = _rank_works(query)
     if error:
-        return [], search_url, error, search_terms
+        return [], search_url, error, intent.search_queries
 
-    _log_top_results(query, ranked)
-    return [s.work for s in ranked], search_url, None, search_terms
+    return ranked, search_url, None, intent.search_queries
