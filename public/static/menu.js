@@ -1,4 +1,4 @@
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
     var toggle = document.querySelector('.menu-toggle');
     var nav = document.querySelector('.site-nav');
     var overlay = document.querySelector('.nav-overlay');
@@ -59,11 +59,22 @@
     var avPanel = document.getElementById('av-results-panel');
     var modeTabs = document.querySelector('.mode-tabs');
 
+    function setPanelVisible(panel, visible) {
+        panel.hidden = !visible;
+        panel.classList.toggle('is-hidden', !visible);
+    }
+
     if (modeTabs && doujinPanel && avPanel) {
         modeTabs.querySelectorAll('.mode-tab').forEach(function (tab) {
             tab.addEventListener('click', function () {
-                var mode = tab.getAttribute('data-mode');
+                var mode = tab.getAttribute('data-tab');
                 var showDoujin = mode === 'doujin';
+
+                if (showDoujin) {
+                    console.log('Doujin tab clicked');
+                } else {
+                    console.log('AV tab clicked');
+                }
 
                 modeTabs.querySelectorAll('.mode-tab').forEach(function (item) {
                     var active = item === tab;
@@ -71,9 +82,9 @@
                     item.setAttribute('aria-selected', active ? 'true' : 'false');
                 });
 
-                doujinPanel.hidden = !showDoujin;
-                avPanel.hidden = showDoujin;
+                setPanelVisible(doujinPanel, showDoujin);
+                setPanelVisible(avPanel, !showDoujin);
             });
         });
     }
-})();
+});

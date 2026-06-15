@@ -325,6 +325,26 @@ img {
     gap: 16px;
 }
 
+.results-mode-panel.is-hidden,
+.results-mode-panel[hidden] {
+    display: none !important;
+}
+
+.is-hidden {
+    display: none !important;
+}
+
+.av-tab-debug-message {
+    background: var(--white);
+    border: 1px solid var(--border-pink);
+    border-radius: 16px;
+    padding: 16px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--dark-pink);
+    text-align: center;
+}
+
 .av-meta-line {
     font-size: 13px;
     color: #767881;

@@ -209,8 +209,8 @@
                 <div class="results-section-header">
                     <h2 class="results-section-title"><span class="star">★</span> おすすめ作品</h2>
                     <div class="mode-tabs" role="tablist" aria-label="作品カテゴリ">
-                        <button type="button" class="mode-tab is-active touch-btn" role="tab" aria-selected="true" data-mode="doujin">同人</button>
-                        <button type="button" class="mode-tab touch-btn" role="tab" aria-selected="false" data-mode="av">AV</button>
+                        <button type="button" class="mode-tab is-active touch-btn" role="tab" aria-selected="true" data-tab="doujin">同人</button>
+                        <button type="button" class="mode-tab touch-btn" role="tab" aria-selected="false" data-tab="av">AV</button>
                     </div>
                 </div>
 
@@ -246,7 +246,8 @@
                     {% endfor %}
                 </div>
 
-                <div id="av-results-panel" class="results-mode-panel" role="tabpanel" hidden>
+                <div id="av-results-panel" class="results-mode-panel is-hidden" role="tabpanel" hidden>
+                    <p class="av-tab-debug-message">AVタブが選択されています</p>
                     {% if av_error %}
                     <p class="error-message">{{ av_error }}</p>
                     {% elif av_works %}
