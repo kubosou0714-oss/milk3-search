@@ -228,6 +228,24 @@ img {
     content: '';
 }
 
+.product-card.is-load-more-hidden {
+    display: none;
+}
+
+.results-load-more {
+    display: block;
+    margin-top: 4px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--main-pink);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: center;
+    width: 100%;
+}
+
 /* 検索ボタン強調 */
 .btn-search-primary {
     width: 100%;
@@ -377,6 +395,49 @@ img {
     50% { transform: translateY(-8px); }
 }
 
+/* 更新確認用（ページ下部） */
+.build-info {
+    margin: 24px auto 0;
+    padding: 0 16px 16px;
+    text-align: center;
+    font-size: 11px;
+    color: #c4c4cc;
+    letter-spacing: 0.02em;
+}
+
+/* PC・スマホ共通URLの案内 */
+.share-url-banner {
+    margin: 0 auto 16px;
+    padding: 12px 16px;
+    max-width: 960px;
+    background: #fff7f9;
+    border: 1px solid rgba(255, 143, 163, 0.35);
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #52525b;
+}
+
+.share-url-banner strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #1a1b23;
+    font-size: 14px;
+}
+
+.share-url-banner a {
+    color: #fb6f92;
+    font-weight: 800;
+    word-break: break-all;
+}
+
+.share-url-banner small {
+    display: block;
+    margin-top: 6px;
+    color: #767881;
+    font-size: 12px;
+}
+
 /* タッチしやすいボタン */
 .touch-btn {
     min-height: 48px;
@@ -474,33 +535,75 @@ img {
     }
 
     .results-container .main-layout {
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 12px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+        width: 100%;
     }
 
+    /* スマホ：ミルク主任は上部に縦並び（fixed / sticky なし） */
     .left-character-zone.left-character-zone--results {
-        position: sticky;
-        top: 88px;
-        width: auto;
+        position: static;
+        top: auto;
+        width: 100%;
+        max-width: 100%;
+        flex: none;
         flex-shrink: 0;
-        z-index: 5;
+        align-self: stretch;
+        order: 1;
+        z-index: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-bottom: 4px;
     }
 
     .left-character-zone--results .comment-bubble {
-        font-size: 11px;
-        padding: 10px 12px;
-        margin-bottom: 10px;
+        font-size: 14px;
+        padding: 12px 16px;
+        margin-bottom: 12px;
+        width: auto;
+        max-width: min(100%, 320px);
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .left-character-zone--results .character-img {
-        width: clamp(100px, 28vw, 160px);
-        max-width: 160px;
+        width: min(180px, 48vw);
+        max-width: 180px;
+        margin: 0 auto;
+        animation: none;
     }
 
     .results-container .center-cards-zone {
         min-width: 0;
-        flex: 1;
+        flex: none;
+        width: 100%;
+        max-width: 100%;
+        order: 2;
+    }
+
+    .results-container .product-card {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .results-container .info-area {
+        min-width: 0;
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .results-container .title-text {
+        overflow-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .results-container .author-text,
+    .results-container .recommend-reasons li {
+        overflow-wrap: break-word;
+        word-break: break-word;
     }
 
     .how-to-flow {
