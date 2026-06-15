@@ -206,7 +206,15 @@
                 {% if error %}
                 <p class="error-message">{{ error }}</p>
                 {% elif results %}
-                <h2 class="results-section-title"><span class="star">★</span> おすすめ作品</h2>
+                <div class="results-section-header">
+                    <h2 class="results-section-title"><span class="star">★</span> おすすめ作品</h2>
+                    <div class="mode-tabs" role="tablist" aria-label="作品カテゴリ">
+                        <button type="button" class="mode-tab is-active touch-btn" role="tab" aria-selected="true" data-mode="doujin">同人</button>
+                        <button type="button" class="mode-tab touch-btn" role="tab" aria-selected="false" data-mode="av">AV</button>
+                    </div>
+                </div>
+
+                <div id="doujin-results-panel" class="results-mode-panel" role="tabpanel">
                     {% for item in results %}
                     <a href="{{ item.url }}" class="product-card" target="_blank" rel="noopener noreferrer">
                         <div class="thumb-area{% if item.image_url %} has-image{% endif %}">
@@ -236,6 +244,78 @@
                         </div>
                     </a>
                     {% endfor %}
+                </div>
+
+                <div id="av-results-panel" class="results-mode-panel" role="tabpanel" hidden>
+                    <div class="product-card product-card--av">
+                        <div class="thumb-area thumb-area--av"></div>
+                        <div class="info-area">
+                            <div>
+                                <div class="title-text">催眠で理性がとろける...清楚な彼女の完全洗脳レッスン</div>
+                                <div class="av-meta-line"><strong>女優：</strong>星宮せいら</div>
+                                <div class="av-meta-line"><strong>メーカー：</strong>マインズ</div>
+                                <div class="av-meta-line"><strong>ジャンル：</strong>催眠・洗脳</div>
+                                <div class="recommend-reasons">
+                                    <div class="recommend-reasons-title">おすすめ理由</div>
+                                    <ul>
+                                        <li>「{{ keyword }}」に近いテーマの作品です</li>
+                                        <li>催眠・洗脳系の定番作品です</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="meta-bottom">
+                                <div class="price-text">2,480<span>（定価 3,278）(税込)</span></div>
+                                <span class="btn-av touch-btn">AVで見る ↗</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="product-card product-card--av">
+                        <div class="thumb-area thumb-area--av"></div>
+                        <div class="info-area">
+                            <div>
+                                <div class="title-text">催眠アプリで従順ペット化！言いなり娘のイキっぱなし生活</div>
+                                <div class="av-meta-line"><strong>女優：</strong>白桃はな</div>
+                                <div class="av-meta-line"><strong>メーカー：</strong>アイデアポケット</div>
+                                <div class="av-meta-line"><strong>ジャンル：</strong>催眠・支配</div>
+                                <div class="recommend-reasons">
+                                    <div class="recommend-reasons-title">おすすめ理由</div>
+                                    <ul>
+                                        <li>アプリ催眠系の人気ジャンルです</li>
+                                        <li>従順・ペット化テーマが強い作品です</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="meta-bottom">
+                                <div class="price-text">2,380<span>（定価 3,168）(税込)</span></div>
+                                <span class="btn-av touch-btn">AVで見る ↗</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="product-card product-card--av">
+                        <div class="thumb-area thumb-area--av"></div>
+                        <div class="info-area">
+                            <div>
+                                <div class="title-text">催眠誘導で意識を乗っ取られたOL ～社内でこっそり洗脳される私～</div>
+                                <div class="av-meta-line"><strong>女優：</strong>葵つばさ</div>
+                                <div class="av-meta-line"><strong>メーカー：</strong>SODクリエイト</div>
+                                <div class="av-meta-line"><strong>ジャンル：</strong>催眠・中出し</div>
+                                <div class="recommend-reasons">
+                                    <div class="recommend-reasons-title">おすすめ理由</div>
+                                    <ul>
+                                        <li>OL×催眠の王道シチュエーションです</li>
+                                        <li>社内洗脳系が好きな方におすすめです</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="meta-bottom">
+                                <div class="price-text">2,680<span>（定価 3,580）(税込)</span></div>
+                                <span class="btn-av touch-btn">AVで見る ↗</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 {% else %}
                 <p class="error-message">キーワードを入力して検索してください。</p>
                 {% endif %}
