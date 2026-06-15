@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-version" content="{{ asset_version }}">
     <title>無料案内所 | あなたにぴったりの作品をレコメンド</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     <style>
@@ -147,14 +146,6 @@
         <button type="button" class="nav-overlay" aria-label="メニューを閉じる"></button>
     </header>
 
-    {% if is_local_dev and share_url %}
-    <div class="share-url-banner">
-        <strong>スマホでも同じURLで確認できます</strong>
-        <a href="{{ share_url }}">{{ share_url }}</a>
-        <small>PCもスマホもこのURLを使ってください（127.0.0.1 はスマホから見えません）</small>
-    </div>
-    {% endif %}
-
     <div class="container container--home">
         <div class="home-hero">
             <div class="comment-bubble">こんばんは♡ 何をお探し？</div>
@@ -204,7 +195,6 @@
         </div>
     </section>
 
-    <p class="build-info">更新確認: v{{ asset_version }}</p>
     <script src="{{ url_for('static', filename='menu.js', v=asset_version) }}"></script>
 </body>
 </html>

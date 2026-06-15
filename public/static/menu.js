@@ -35,22 +35,4 @@
             btn.textContent = open ? 'もっと見る▽' : '閉じる△';
         });
     });
-
-    document.querySelectorAll('.results-load-more').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var step = parseInt(btn.dataset.step, 10) || 10;
-            var shown = parseInt(btn.dataset.shown, 10) || 10;
-            var total = parseInt(btn.dataset.total, 10) || shown;
-            var hidden = document.querySelectorAll('.product-card.is-load-more-hidden');
-            var reveal = Math.min(step, hidden.length);
-            for (var i = 0; i < reveal; i++) {
-                hidden[i].classList.remove('is-load-more-hidden');
-            }
-            shown += reveal;
-            btn.dataset.shown = String(shown);
-            if (shown >= total) {
-                btn.hidden = true;
-            }
-        });
-    });
 })();

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="build-version" content="{{ asset_version }}">
     <title>無料案内所 | 検索結果</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     <style>
@@ -171,14 +170,6 @@
         <button type="button" class="nav-overlay" aria-label="メニューを閉じる"></button>
     </header>
 
-    {% if is_local_dev and share_url %}
-    <div class="share-url-banner">
-        <strong>スマホでも同じURLで確認できます</strong>
-        <a href="{{ share_url }}">{{ share_url }}</a>
-        <small>PCもスマホもこのURLを使ってください（127.0.0.1 はスマホから見えません）</small>
-    </div>
-    {% endif %}
-
     <div class="results-container">
         <div class="top-search-area" id="search">
             <div class="mini-search-box">
@@ -217,7 +208,7 @@
                 {% elif results %}
                 <h2 class="results-section-title"><span class="star">★</span> おすすめ作品</h2>
                     {% for item in results %}
-                    <a href="{{ item.url }}" class="product-card{% if loop.index > initial_display %} is-load-more-hidden{% endif %}" target="_blank" rel="noopener noreferrer">
+                    <a href="{{ item.url }}" class="product-card" target="_blank" rel="noopener noreferrer">
                         <div class="thumb-area{% if item.image_url %} has-image{% endif %}">
                             {% if item.image_url %}
                             <img src="{{ item.image_url }}" alt="" class="thumb-img" loading="lazy" onerror="this.closest('.thumb-area').classList.remove('has-image'); this.remove();">
@@ -245,16 +236,12 @@
                         </div>
                     </a>
                     {% endfor %}
-                    {% if total_results > initial_display %}
-                    <button type="button" class="results-load-more touch-btn" data-step="{{ load_more_step }}" data-shown="{{ initial_display }}" data-total="{{ total_results }}">もっと見る▽</button>
-                    {% endif %}
                 {% else %}
                 <p class="error-message">キーワードを入力して検索してください。</p>
                 {% endif %}
             </div>
         </div>
     </div>
-    <p class="build-info">更新確認: v{{ asset_version }}</p>
     <script src="{{ url_for('static', filename='menu.js', v=asset_version) }}"></script>
 </body>
 </html>

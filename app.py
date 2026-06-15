@@ -95,9 +95,6 @@ def results():
             results=[],
             error="キーワードを入力してください。",
             popular_keywords=POPULAR_KEYWORDS,
-            initial_display=0,
-            load_more_step=10,
-            total_results=0,
         )
 
     works, _search_url, error, _search_terms = fetch_expanded_works(keyword)
@@ -109,9 +106,6 @@ def results():
         results=results_data,
         error=error,
         popular_keywords=POPULAR_KEYWORDS,
-        initial_display=len(results_data),
-        load_more_step=10,
-        total_results=len(results_data),
     )
 
 
