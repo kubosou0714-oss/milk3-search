@@ -51,13 +51,12 @@ def build_search_url(keyword: str) -> str:
     return f"{BASE}/{SITE}/fsr/=/keyword/{encoded}/order/trend"
 
 
-def build_sapi_url(keyword: str, page: int = 1, per_page: int | None = None) -> str:
+def build_sapi_url(keyword: str, page: int = 1) -> str:
     """作品一覧 JSON（HTML 断片入り）の API URL。"""
     encoded = quote(_resolve_keyword(keyword), safe="")
-    pp = per_page if per_page is not None else PER_PAGE
     return (
         f"{BASE}/{SITE}/fsr/ajax/=/language/jp/keyword/{encoded}"
-        f"/order/trend/per_page/{pp}/page/{page}"
+        f"/order/trend/per_page/{PER_PAGE}/page/{page}"
     )
 
 
@@ -166,15 +165,7 @@ def _find_sapi_url_from_page(soup: BeautifulSoup, keyword: str) -> str | None:
     return None
 
 
-def _apply_per_page(url: str, per_page: int | None) -> str:
-    if per_page is None:
-        return url
-    if re.search(r"/per_page/\d+", url):
-        return re.sub(r"/per_page/\d+", f"/per_page/{per_page}", url)
-    return url
-
-
-def fetch_works(keyword: str, per_page: int | None = None) -> tuple[list[WorkItem], str, str | None]:
+def fetch_works(keyword: str) -> tuple[list[WorkItem], str, str | None]:
     """
     キーワードで作品を取得する。
 
@@ -193,10 +184,7 @@ def fetch_works(keyword: str, per_page: int | None = None) -> tuple[list[WorkIte
         page_resp = session.get(search_url, timeout=REQUEST_TIMEOUT)
         page_resp.raise_for_status()
         page_soup = BeautifulSoup(page_resp.text, "html.parser")
-        sapi_url = _apply_per_page(
-            _find_sapi_url_from_page(page_soup, keyword) or build_sapi_url(keyword, per_page=per_page),
-            per_page,
-        )
+        sapi_url = _find_sapi_url_from_page(page_soup, keyword) or build_sapi_url(keyword)
 
         api_resp = session.get(sapi_url, timeout=REQUEST_TIMEOUT)
         api_resp.raise_for_status()
