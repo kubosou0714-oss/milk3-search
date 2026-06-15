@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
-    {
-      "source": "/((?!static/).*)",
-      "destination": "/app.py"
+  "installCommand": "pip install -r requirements.txt",
+  "functions": {
+    "app.py": {
+      "maxDuration": 10
     }
-  ],
+  },
   "headers": [
     {
       "source": "/((?!static/).*)",
