@@ -471,6 +471,20 @@ img {
     line-height: 1.5;
 }
 
+.site-footer {
+    margin-top: auto;
+    padding: 20px 24px 28px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #767881;
+}
+
+.site-footer a {
+    color: var(--dark-pink, #fb6f92);
+    font-weight: 700;
+}
+
 /* おすすめ理由 */
 .recommend-reasons {
     margin-top: 10px;
