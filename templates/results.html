@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>無料案内所 | 検索結果</title>
+    <title>SHIKOZO | 検索結果</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     <style>
         :root {
-            --bg-color: #fdfbfe;
+            --bg-color: #fff5f7;
             --main-pink: #ff8fa3;
             --light-pink: #ffe5ec;
             --dark-pink: #fb6f92;
@@ -158,8 +158,8 @@
 </head>
 <body>
 
-    <header class="site-header site-header--glass">
-        <a href="{{ url_for('index') }}" class="logo">無料案内所<span>ONLINE</span></a>
+    <header class="site-header site-header--brand">
+        <a href="{{ url_for('index') }}" class="logo logo--shikozo">SHIKOZO</a>
         <button type="button" class="menu-toggle touch-btn" aria-label="メニューを開く" aria-expanded="false" aria-controls="site-nav">
             <span></span><span></span><span></span>
         </button>
@@ -174,11 +174,11 @@
         <div class="top-search-area" id="search">
             <div class="mini-search-box">
                 <form action="{{ url_for('results') }}" method="GET" class="mini-form">
-                    <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="キーワードを入力してね♡" required autocomplete="off">
-                    <button type="submit" class="btn-search-primary mini-btn touch-btn"><span class="btn-icon">🔍</span> 探す</button>
+                    <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="キーワードを入力してください" required autocomplete="off">
+                    <button type="submit" class="btn-search-primary mini-btn touch-btn">探す</button>
                 </form>
                 <div class="popular-keywords">
-                    <div class="popular-keywords-title">人気の検索ワード</div>
+                    <div class="popular-keywords-title">人気のキーワード</div>
                     <div class="keyword-chips">
                         {% for word in popular_keywords[:4] %}
                         <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
@@ -198,8 +198,8 @@
 
         <div class="main-layout">
             <div class="left-character-zone left-character-zone--results">
-                <div class="comment-bubble">「こんなのはどうかしら？」</div>
-                <img src="{{ url_for('static', filename='ミルク立ち絵.png') }}" alt="ミルク主任" class="character-img" decoding="async">
+                <div class="comment-bubble">こんなのはどうゾウ？</div>
+                <img src="{{ url_for('static', filename='シコいゾウ.png') }}" alt="シコいゾウ" class="character-img" decoding="async">
             </div>
 
             <div class="center-cards-zone">
@@ -247,7 +247,6 @@
                 </div>
 
                 <div id="av-results-panel" class="results-mode-panel is-hidden" role="tabpanel" hidden>
-                    <p class="av-tab-debug-message">AVタブが選択されています</p>
                     {% if av_error %}
                     <p class="error-message">{{ av_error }}</p>
                     {% elif av_works %}

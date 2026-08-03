@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>無料案内所 | あなたにぴったりの作品をレコメンド</title>
+    <title>SHIKOZO | シコいゾウのレコメンドカウンター</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     <style>
         :root {
-            --bg-color: #fdfbfe;
+            --bg-color: #fff5f7;
             --main-pink: #ff8fa3;
             --light-pink: #ffe5ec;
             --dark-pink: #fb6f92;
@@ -20,7 +20,7 @@
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(at 0% 0%, hsla(343,100%,96%,1) 0, transparent 40%);
+            background-image: radial-gradient(at 0% 0%, hsla(343,100%,96%,1) 0, transparent 45%);
             color: var(--text-dark);
             min-height: 100vh;
             display: flex;
@@ -54,20 +54,38 @@
             flex: 1;
             max-width: 600px;
             width: 100%;
-            box-shadow: 0 20px 40px rgba(255, 143, 163, 0.05);
+            box-shadow: 0 20px 40px rgba(255, 143, 163, 0.08);
         }
 
         h1 { font-size: 28px; font-weight: 800; margin-bottom: 10px; line-height: 1.35; }
+        h1 .accent { color: var(--dark-pink); }
         .subtitle { font-size: 15px; color: #767881; margin-bottom: 30px; font-weight: 600; }
 
+        .home-search-form {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            margin-bottom: 8px;
+        }
+
         .search-input {
-            width: 100%;
-            height: 60px;
+            flex: 1;
+            min-width: 0;
+            height: 56px;
             padding: 0 20px;
             border: 1px solid rgba(255, 143, 163, 0.3);
-            border-radius: 16px;
+            border-radius: 14px;
             font-size: 16px;
-            margin-bottom: 16px;
+            margin-bottom: 0;
+        }
+
+        .home-search-form .btn-search-primary {
+            width: auto;
+            flex-shrink: 0;
+            min-width: 110px;
+            padding: 0 28px;
+            border-radius: 14px;
+            font-size: 16px;
         }
 
         @media (max-width: 768px) {
@@ -106,8 +124,8 @@
             }
 
             .home-hero .character-img {
-                max-width: 200px;
-                width: 200px;
+                max-width: 160px;
+                width: 160px;
                 flex-shrink: 0;
             }
 
@@ -124,18 +142,28 @@
             h1 { font-size: 20px; margin-bottom: 6px; }
             .subtitle { font-size: 13px; margin-bottom: 12px; }
 
+            .home-search-form {
+                flex-direction: column;
+                gap: 10px;
+            }
+
             .search-input {
                 height: 52px;
                 font-size: 16px;
-                margin-bottom: 12px;
                 background: var(--white);
+            }
+
+            .home-search-form .btn-search-primary {
+                width: 100%;
+                min-width: 0;
+                height: 52px;
             }
         }
     </style>
 </head>
 <body>
-    <header class="site-header">
-        <a href="{{ url_for('index') }}" class="logo">無料案内所<span>ONLINE</span></a>
+    <header class="site-header site-header--brand">
+        <a href="{{ url_for('index') }}" class="logo logo--shikozo">SHIKOZO</a>
         <button type="button" class="menu-toggle touch-btn" aria-label="メニューを開く" aria-expanded="false" aria-controls="site-nav">
             <span></span><span></span><span></span>
         </button>
@@ -148,18 +176,18 @@
 
     <div class="container container--home">
         <div class="home-hero">
-            <div class="comment-bubble">こんばんは♡ 何をお探し？</div>
-            <img src="{{ url_for('static', filename='ミルク立ち絵.png') }}" alt="ミルク主任" class="character-img" decoding="async">
+            <div class="comment-bubble">どんなシコい作品をお探しですか？</div>
+            <img src="{{ url_for('static', filename='シコいゾウ.png') }}" alt="シコいゾウ" class="character-img" decoding="async">
         </div>
         <div class="consult-box" id="search">
-            <h1>あなたに最上の作品を。</h1>
-            <div class="subtitle">秘密のレコメンドカウンター</div>
-            <form action="{{ url_for('results') }}" method="GET">
-                <input type="text" name="keyword" class="search-input" placeholder="キーワードを入力してね♡" required autocomplete="off">
-                <button type="submit" class="btn-search-primary touch-btn"><span class="btn-icon">🔍</span> 探す</button>
+            <h1>あなたに<span class="accent">最上の</span>作品を。</h1>
+            <div class="subtitle">シコいゾウのレコメンドカウンター</div>
+            <form action="{{ url_for('results') }}" method="GET" class="home-search-form">
+                <input type="text" name="keyword" class="search-input" placeholder="キーワードを入力してください" required autocomplete="off">
+                <button type="submit" class="btn-search-primary touch-btn">探す</button>
             </form>
             <div class="popular-keywords">
-                <div class="popular-keywords-title">人気の検索ワード</div>
+                <div class="popular-keywords-title">人気のキーワード</div>
                 <div class="keyword-chips">
                     {% for word in popular_keywords[:4] %}
                     <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
@@ -186,7 +214,7 @@
             </div>
             <div class="how-to-step">
                 <div class="how-to-step-num">2</div>
-                <div class="how-to-step-text">ミルク主任が作品をご提案</div>
+                <div class="how-to-step-text">シコいゾウが作品をご提案</div>
             </div>
             <div class="how-to-step">
                 <div class="how-to-step-num">3</div>

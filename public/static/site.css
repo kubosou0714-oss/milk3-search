@@ -19,17 +19,18 @@ img {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 60px;
-    border-bottom: 1px solid rgba(255, 143, 163, 0.15);
-    background: rgba(253, 251, 254, 0.95);
+    padding: 18px 60px;
+    border-bottom: none;
+    background: var(--main-pink, #ff8fa3);
     position: sticky;
     top: 0;
     z-index: 100;
     width: 100%;
 }
 
+.site-header--brand,
 .site-header--glass {
-    background: rgba(253, 251, 254, 0.8);
+    background: var(--main-pink, #ff8fa3);
 }
 
 .logo {
@@ -38,6 +39,12 @@ img {
     text-decoration: none;
     color: var(--text-dark);
     flex-shrink: 0;
+}
+
+.logo--shikozo {
+    color: #ffffff;
+    letter-spacing: 0.06em;
+    font-size: 26px;
 }
 
 .logo span {
@@ -58,9 +65,9 @@ img {
     width: 44px;
     height: 44px;
     padding: 10px;
-    border: 1px solid rgba(255, 143, 163, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.45);
     border-radius: 12px;
-    background: var(--white);
+    background: rgba(255, 255, 255, 0.2);
     cursor: pointer;
 }
 
@@ -68,7 +75,7 @@ img {
     display: block;
     width: 100%;
     height: 2px;
-    background: var(--text-dark);
+    background: #ffffff;
     border-radius: 2px;
     transition: transform 0.2s, opacity 0.2s;
 }
@@ -94,13 +101,13 @@ img {
 .site-nav a {
     font-size: 15px;
     font-weight: 700;
-    color: var(--text-dark);
+    color: #ffffff;
     text-decoration: none;
     white-space: nowrap;
 }
 
 .site-nav a:hover {
-    color: var(--main-pink);
+    color: #fff0f3;
 }
 
 .nav-overlay {
@@ -149,7 +156,7 @@ img {
     animation: float 6s ease-in-out infinite;
 }
 
-/* 検索結果ページ：ミルク主任エリア */
+/* 検索結果ページ：シコいゾウエリア */
 .results-container .main-layout {
     align-items: flex-start;
 }
@@ -165,8 +172,8 @@ img {
 }
 
 .left-character-zone--results .character-img {
-    width: clamp(432px, 19.5vw, 504px);
-    max-width: 504px;
+    width: clamp(280px, 16vw, 400px);
+    max-width: 400px;
     height: auto;
 }
 
@@ -191,10 +198,10 @@ img {
 .keyword-chip {
     display: inline-block;
     padding: 10px 16px;
-    border: 1px solid rgba(255, 143, 163, 0.45);
+    border: 1px solid rgba(255, 143, 163, 0.35);
     border-radius: 999px;
-    background: var(--white);
-    color: var(--main-pink);
+    background: var(--light-pink, #ffe5ec);
+    color: var(--dark-pink, #fb6f92);
     font-size: 14px;
     font-weight: 700;
     text-decoration: none;
@@ -202,8 +209,8 @@ img {
 }
 
 .keyword-chip:hover {
-    background: var(--light-pink);
-    color: var(--dark-pink);
+    background: var(--main-pink, #ff8fa3);
+    color: #ffffff;
 }
 
 .keyword-chips--more {
@@ -585,6 +592,10 @@ img {
         font-size: 18px;
     }
 
+    .logo--shikozo {
+        font-size: 22px;
+    }
+
     .logo span {
         font-size: 11px;
         padding: 2px 6px;
@@ -643,7 +654,12 @@ img {
     .site-nav a {
         padding: 16px 0;
         font-size: 16px;
+        color: var(--text-dark, #1a1b23);
         border-bottom: 1px solid rgba(255, 143, 163, 0.15);
+    }
+
+    .site-nav a:hover {
+        color: var(--main-pink, #ff8fa3);
     }
 
     .results-container .main-layout {
@@ -653,7 +669,7 @@ img {
         width: 100%;
     }
 
-    /* スマホ：ミルク主任は上部に縦並び（fixed / sticky なし） */
+    /* スマホ：シコいゾウは上部に縦並び（fixed / sticky なし） */
     .left-character-zone.left-character-zone--results {
         position: static;
         top: auto;
