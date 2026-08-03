@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any
 from urllib.parse import urlencode
 
@@ -13,22 +14,40 @@ logger = logging.getLogger(__name__)
 
 API_URL = "https://api.dmm.com/affiliate/v3/ItemList"
 IS_VERCEL = os.environ.get("VERCEL") == "1"
-REQUEST_TIMEOUT = 8 if IS_VERCEL else 20
+REQUEST_TIMEOUT = 12 if IS_VERCEL else 20
 SEARCH_DEBUG = os.environ.get("SEARCH_DEBUG", "0" if IS_VERCEL else "1") == "1"
 
 CONFIG_ERROR = "FANZA検索の設定がまだ完了していません"
+FLOORS = ("videoa", "videoc", "anime")
 
 
 def _credentials() -> tuple[str, str] | None:
     api_id = os.environ.get("DMM_API_ID", "").strip()
     affiliate_id = os.environ.get("DMM_AFFILIATE_ID", "").strip()
+    # Vercel CLI のプレースホルダを誤って入れた場合を除外
     if not api_id or not affiliate_id:
+        return None
+    if api_id.upper() in {"[SENSITIVE]", "SENSITIVE", "ENCRYPTED"}:
+        return None
+    if affiliate_id.upper() in {"[SENSITIVE]", "SENSITIVE", "ENCRYPTED"}:
         return None
     return api_id, affiliate_id
 
 
+def _api_affiliate_id(affiliate_id: str) -> str:
+    """API は末尾 990〜999 のみ許可。001 等なら 990 に寄せる。"""
+    match = re.match(r"^(.*-)(\d+)$", affiliate_id.strip())
+    if not match:
+        return affiliate_id.strip()
+    suffix = int(match.group(2))
+    if 990 <= suffix <= 999:
+        return affiliate_id.strip()
+    return f"{match.group(1)}990"
+
+
 def _debug(message: str) -> None:
-    if SEARCH_DEBUG:
+    # 本番でも結果件数は残す（秘密情報は出さない）
+    if SEARCH_DEBUG or IS_VERCEL:
         logger.info(message)
 
 
@@ -74,8 +93,8 @@ def _normalize_item(item: dict[str, Any], keyword: str) -> dict[str, Any]:
     if isinstance(image_obj, dict):
         image_url = str(image_obj.get("large") or image_obj.get("small") or "").strip()
 
-    affiliate_url = str(item.get("affiliateURL") or "").strip()
-    url = str(item.get("URL") or "").strip()
+    affiliate_url = str(item.get("affiliateURL") or item.get("affiliateUrl") or "").strip()
+    url = str(item.get("URL") or item.get("url") or "").strip()
     link_url = affiliate_url or url
 
     reasons: list[str] = []
@@ -103,6 +122,91 @@ def _normalize_item(item: dict[str, Any], keyword: str) -> dict[str, Any]:
     }
 
 
+def _extract_items(result: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_items = result.get("items")
+    if isinstance(raw_items, list):
+        return [item for item in raw_items if isinstance(item, dict)]
+    if isinstance(raw_items, dict):
+        # 1件だけのとき dict になるケースに備える
+        nested = raw_items.get("item")
+        if isinstance(nested, list):
+            return [item for item in nested if isinstance(item, dict)]
+        if isinstance(nested, dict):
+            return [nested]
+        return [raw_items]
+    return []
+
+
+def _friendly_api_error(result: dict[str, Any]) -> str:
+    errors = result.get("errors")
+    if isinstance(errors, dict):
+        keys = {str(key).lower() for key in errors}
+        if "api_id" in keys and "affiliate_id" in keys:
+            return (
+                "FANZA API認証に失敗しました。"
+                "Vercelの DMM_API_ID と、末尾990〜999の DMM_AFFILIATE_ID を確認してください。"
+            )
+        if "api_id" in keys:
+            return "FANZA API認証に失敗しました。Vercelの DMM_API_ID が正しいか確認してください。"
+        if "affiliate_id" in keys:
+            return (
+                "FANZA API認証に失敗しました。"
+                "DMM_AFFILIATE_ID は末尾が990〜999のAPI用IDにしてください。"
+            )
+    message = str(result.get("message") or "").strip()
+    if message:
+        return f"FANZA検索に失敗しました（{message}）。"
+    return "FANZA検索に失敗しました。時間をおいて再度お試しください。"
+
+
+def _request_items(
+    api_id: str,
+    affiliate_id: str,
+    keyword: str,
+    hits: int,
+    floor: str,
+) -> tuple[list[dict[str, Any]], str | None]:
+    params = {
+        "api_id": api_id,
+        "affiliate_id": affiliate_id,
+        "site": "FANZA",
+        "service": "digital",
+        "floor": floor,
+        "hits": hits,
+        "offset": 1,
+        "sort": "rank",
+        "keyword": keyword,
+        "output": "json",
+    }
+    _debug(f"FANZA request: floor={floor} {_safe_request_query(params)}")
+
+    try:
+        response = requests.get(API_URL, params=params, timeout=REQUEST_TIMEOUT)
+        try:
+            payload = response.json()
+        except ValueError:
+            _debug(f"FANZA error: invalid JSON http={response.status_code}")
+            return [], "FANZA検索の応答形式が想定外でした。"
+    except requests.RequestException as exc:
+        _debug(f"FANZA error: request failed ({exc})")
+        return [], "FANZA検索に失敗しました。時間をおいて再度お試しください。"
+
+    result = payload.get("result") if isinstance(payload, dict) else None
+    if not isinstance(result, dict):
+        _debug("FANZA error: unexpected response shape")
+        return [], "FANZA検索の応答形式が想定外でした。"
+
+    status = result.get("status")
+    status_ok = str(status).upper() in {"200", "OK"}
+    if not status_ok or response.status_code >= 400:
+        _debug(f"FANZA error: http={response.status_code} status={status} errors={result.get('errors')}")
+        return [], _friendly_api_error(result)
+
+    items = _extract_items(result)
+    _debug(f"FANZA floor={floor} raw_count={len(items)} result_count={result.get('result_count')}")
+    return items, None
+
+
 def fetch_fanza_works(keyword: str, limit: int = 20) -> tuple[list[dict[str, Any]], str | None]:
     """
     FANZA AV作品をキーワード検索する。
@@ -120,49 +224,36 @@ def fetch_fanza_works(keyword: str, limit: int = 20) -> tuple[list[dict[str, Any
         _debug("FANZA search skipped: credentials not configured")
         return [], CONFIG_ERROR
 
-    api_id, affiliate_id = creds
+    api_id, affiliate_id_raw = creds
+    affiliate_id = _api_affiliate_id(affiliate_id_raw)
+    if affiliate_id != affiliate_id_raw:
+        _debug(f"FANZA affiliate_id normalized to API suffix (...{affiliate_id[-3:]})")
+
     hits = max(1, min(int(limit), 100))
-
-    params = {
-        "api_id": api_id,
-        "affiliate_id": affiliate_id,
-        "site": "FANZA",
-        "service": "digital",
-        "floor": "videoa",
-        "hits": hits,
-        "offset": 1,
-        "sort": "rank",
-        "keyword": keyword,
-        "output": "json",
-    }
-
     _debug(f"FANZA search keyword: {keyword}")
-    _debug(f"FANZA request URL: {_safe_request_query(params)}")
 
-    try:
-        response = requests.get(API_URL, params=params, timeout=REQUEST_TIMEOUT)
-        response.raise_for_status()
-        payload = response.json()
-    except requests.RequestException as exc:
-        _debug(f"FANZA error: request failed ({exc})")
-        return [], "FANZA検索に失敗しました。時間をおいて再度お試しください。"
-    except ValueError as exc:
-        _debug(f"FANZA error: invalid JSON ({exc})")
-        return [], "FANZA検索の応答形式が想定外でした。"
+    last_error: str | None = None
+    raw_items: list[dict[str, Any]] = []
+    for floor in FLOORS:
+        items, error = _request_items(api_id, affiliate_id, keyword, hits, floor)
+        if error:
+            last_error = error
+            # 認証エラーは他フロアでも同じなので即返す
+            if "API認証" in error:
+                return [], error
+            continue
+        if items:
+            raw_items = items
+            break
 
-    result = payload.get("result") if isinstance(payload, dict) else None
-    if not isinstance(result, dict):
-        _debug("FANZA error: unexpected response shape")
-        return [], "FANZA検索の応答形式が想定外でした。"
+    if not raw_items:
+        if last_error:
+            return [], last_error
+        _debug("FANZA fetched count: 0")
+        return [], None
 
-    raw_items = result.get("items")
-    if not isinstance(raw_items, list):
-        raw_items = []
-
-    works = [_normalize_item(item, keyword) for item in raw_items if isinstance(item, dict)]
+    works = [_normalize_item(item, keyword) for item in raw_items]
     works = [work for work in works if work.get("title") and work["title"] != "—"]
-
-    _debug(f"FANZA fetched count: {len(raw_items)}")
     _debug(f"FANZA normalized count: {len(works)}")
     if works:
         titles = " | ".join(work["title"][:40] for work in works[:5])

@@ -260,9 +260,11 @@
                             <div class="info-area">
                                 <div>
                                     <div class="title-text">{{ item.title }}</div>
-                                    <div class="av-meta-line"><strong>女優：</strong>{{ item.actress }}</div>
-                                    <div class="av-meta-line"><strong>メーカー：</strong>{{ item.maker }}</div>
-                                    <div class="av-meta-line"><strong>ジャンル：</strong>{{ item.genre }}</div>
+                                    <div class="author-text">女優：{{ item.actress }}</div>
+                                    <div class="author-text">メーカー：{{ item.maker }}</div>
+                                    {% if item.genre and item.genre != '—' %}
+                                    <div class="author-text">ジャンル：{{ item.genre }}</div>
+                                    {% endif %}
                                     {% if item.reasons %}
                                     <div class="recommend-reasons">
                                         <div class="recommend-reasons-title">おすすめ理由</div>
@@ -283,7 +285,7 @@
                                         <span>(税込)</span>
                                         {% endif %}
                                     </div>
-                                    <span class="btn-av touch-btn">AVで見る ↗</span>
+                                    <span class="btn-av touch-btn">FANZAで見る ↗</span>
                                 </div>
                             </div>
                         </a>
