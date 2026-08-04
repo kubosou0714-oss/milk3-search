@@ -285,7 +285,13 @@ img {
     font-size: 13px;
     font-weight: 700;
     text-decoration: none;
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.sort-tab:disabled {
+    opacity: 0.55;
+    cursor: wait;
 }
 
 .sort-tab.is-active {
@@ -294,9 +300,25 @@ img {
     border-color: var(--main-pink);
 }
 
-.sort-tab:hover {
+.sort-tab:hover:not(:disabled) {
     border-color: var(--main-pink);
     color: var(--dark-pink);
+}
+
+.results-mode-panel.is-loading {
+    position: relative;
+    min-height: 160px;
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.results-loading-msg {
+    margin: 12px 0;
+    padding: 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #767881;
 }
 
 /* 検索ボタン強調 */

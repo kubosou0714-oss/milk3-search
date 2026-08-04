@@ -242,12 +242,9 @@
                 </div>
 
                 <div class="sort-tabs" role="tablist" aria-label="並び順">
-                    <a href="{{ url_for('results', keyword=keyword, sort='recommend', tab=tab|default('doujin')) }}"
-                       class="sort-tab touch-btn{% if sort|default('recommend') == 'recommend' %} is-active{% endif %}">おすすめ</a>
-                    <a href="{{ url_for('results', keyword=keyword, sort='popular', tab=tab|default('doujin')) }}"
-                       class="sort-tab touch-btn{% if sort|default('recommend') == 'popular' %} is-active{% endif %}">人気順</a>
-                    <a href="{{ url_for('results', keyword=keyword, sort='newest', tab=tab|default('doujin')) }}"
-                       class="sort-tab touch-btn{% if sort|default('recommend') == 'newest' %} is-active{% endif %}">新着順</a>
+                    <button type="button" class="sort-tab touch-btn{% if sort|default('recommend') == 'recommend' %} is-active{% endif %}" data-sort="recommend" role="tab" aria-selected="{{ 'true' if sort|default('recommend') == 'recommend' else 'false' }}">おすすめ</button>
+                    <button type="button" class="sort-tab touch-btn{% if sort|default('recommend') == 'popular' %} is-active{% endif %}" data-sort="popular" role="tab" aria-selected="{{ 'true' if sort|default('recommend') == 'popular' else 'false' }}">人気順</button>
+                    <button type="button" class="sort-tab touch-btn{% if sort|default('recommend') == 'newest' %} is-active{% endif %}" data-sort="newest" role="tab" aria-selected="{{ 'true' if sort|default('recommend') == 'newest' else 'false' }}">新着順</button>
                 </div>
 
                 <div id="doujin-results-panel" class="results-mode-panel{% if tab|default('doujin') == 'av' %} is-hidden{% endif %}" role="tabpanel"{% if tab|default('doujin') == 'av' %} hidden{% endif %}

@@ -326,6 +326,47 @@ def fetch_works(
     page_soup: BeautifulSoup | None = None
 
     try:
+        # まず AJAX を直接叩く（HTML検索ページ往復を省略して高速化）
+        sapi_url = build_sapi_url(keyword, page=page, order=order, per_page=size)
+        api_resp = session.get(sapi_url, timeout=REQUEST_TIMEOUT)
+        if api_resp.status_code in (401, 403):
+            return FetchResult(
+                works=[],
+                search_url=search_url,
+                error="DLsiteへのアクセスが制限されました。時間をおいて再度お試しください。",
+                page=page,
+                per_page=size,
+                order=order,
+            )
+        if api_resp.ok:
+            try:
+                payload = api_resp.json()
+            except (json.JSONDecodeError, ValueError):
+                payload = None
+            if isinstance(payload, dict) and "search_result" in payload:
+                works = _parse_search_result_html(payload["search_result"])
+                total_count = _extract_total_count(payload)
+                if works:
+                    return FetchResult(
+                        works=works,
+                        search_url=search_url,
+                        error=None,
+                        total_count=total_count,
+                        page=page,
+                        per_page=size,
+                        order=order,
+                    )
+                return FetchResult(
+                    works=[],
+                    search_url=search_url,
+                    error="検索結果が 0 件でした。キーワードを変えて試してください。",
+                    total_count=total_count if total_count is not None else 0,
+                    page=page,
+                    per_page=size,
+                    order=order,
+                )
+
+        # AJAX が空/失敗なら検索ページ経由でフォールバック
         page_resp = session.get(search_url, timeout=REQUEST_TIMEOUT)
         if page_resp.status_code in (401, 403):
             return FetchResult(
@@ -341,7 +382,6 @@ def fetch_works(
         sapi_url = _find_sapi_url_from_page(page_soup, keyword, order) or build_sapi_url(
             keyword, page=page, order=order, per_page=size
         )
-        # data-url に page が含まれる場合は要求ページへ合わせる
         if "/page/" in sapi_url:
             sapi_url = re.sub(r"/page/\d+", f"/page/{page}", sapi_url, count=1)
         if "/per_page/" in sapi_url:
