@@ -242,15 +242,61 @@ img {
 .results-load-more {
     display: block;
     margin-top: 4px;
-    padding: 0;
-    border: none;
-    background: none;
+    padding: 12px 16px;
+    border: 1px solid var(--main-pink);
+    border-radius: 12px;
+    background: var(--white);
     color: var(--main-pink);
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     text-align: center;
     width: 100%;
+}
+
+.results-load-more:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.results-count {
+    font-size: 13px;
+    font-weight: 700;
+    color: #767881;
+    margin: 0 0 4px;
+}
+
+.sort-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 8px;
+}
+
+.sort-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 143, 163, 0.35);
+    background: var(--white);
+    color: #767881;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.sort-tab.is-active {
+    background: var(--light-pink);
+    color: var(--dark-pink);
+    border-color: var(--main-pink);
+}
+
+.sort-tab:hover {
+    border-color: var(--main-pink);
+    color: var(--dark-pink);
 }
 
 /* 検索ボタン強調 */

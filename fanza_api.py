@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlencode
 
@@ -19,6 +20,22 @@ SEARCH_DEBUG = os.environ.get("SEARCH_DEBUG", "0" if IS_VERCEL else "1") == "1"
 
 CONFIG_ERROR = "FANZA検索の設定がまだ完了していません"
 FLOORS = ("videoa", "videoc", "anime")
+
+# UI sort → DMM ItemList sort
+SORT_POPULAR = "rank"
+SORT_NEWEST = "date"
+VALID_SORTS = {SORT_POPULAR, SORT_NEWEST, "review", "price", "-price"}
+
+
+@dataclass
+class FanzaFetchResult:
+    works: list[dict[str, Any]] = field(default_factory=list)
+    error: str | None = None
+    total_count: int | None = None
+    page: int = 1
+    hits: int = 20
+    sort: str = SORT_POPULAR
+    floor: str | None = None
 
 
 def _credentials() -> tuple[str, str] | None:
@@ -54,6 +71,17 @@ def _debug(message: str) -> None:
 def _safe_request_query(params: dict[str, Any]) -> str:
     redacted = {key: value for key, value in params.items() if key not in ("api_id", "affiliate_id")}
     return f"{API_URL}?{urlencode(redacted)}"
+
+
+def normalize_fanza_sort(sort: str | None) -> str:
+    key = (sort or "popular").strip().lower()
+    if key in ("newest", "new", "date", "release"):
+        return SORT_NEWEST
+    if key in ("popular", "rank", "hot", "trend"):
+        return SORT_POPULAR
+    if key in VALID_SORTS:
+        return key
+    return SORT_POPULAR
 
 
 def _join_names(items: Any, limit: int = 3) -> str:
@@ -166,7 +194,9 @@ def _request_items(
     keyword: str,
     hits: int,
     floor: str,
-) -> tuple[list[dict[str, Any]], str | None]:
+    sort: str,
+    offset: int,
+) -> tuple[list[dict[str, Any]], str | None, int | None]:
     params = {
         "api_id": api_id,
         "affiliate_id": affiliate_id,
@@ -174,8 +204,8 @@ def _request_items(
         "service": "digital",
         "floor": floor,
         "hits": hits,
-        "offset": 1,
-        "sort": "rank",
+        "offset": max(1, int(offset)),
+        "sort": sort if sort in VALID_SORTS else SORT_POPULAR,
         "keyword": keyword,
         "output": "json",
     }
@@ -187,77 +217,171 @@ def _request_items(
             payload = response.json()
         except ValueError:
             _debug(f"FANZA error: invalid JSON http={response.status_code}")
-            return [], "FANZA検索の応答形式が想定外でした。"
+            return [], "FANZA検索の応答形式が想定外でした。", None
     except requests.RequestException as exc:
+        text = str(exc).lower()
         _debug(f"FANZA error: request failed ({exc})")
-        return [], "FANZA検索に失敗しました。時間をおいて再度お試しください。"
+        if "403" in text or "401" in text:
+            return [], "FANZAへのアクセスが制限されました。時間をおいて再度お試しください。", None
+        if "timeout" in text or "timed out" in text:
+            return [], "FANZAへの接続がタイムアウトしました。時間をおいて再度お試しください。", None
+        return [], "FANZA検索に失敗しました。時間をおいて再度お試しください。", None
 
     result = payload.get("result") if isinstance(payload, dict) else None
     if not isinstance(result, dict):
         _debug("FANZA error: unexpected response shape")
-        return [], "FANZA検索の応答形式が想定外でした。"
+        return [], "FANZA検索の応答形式が想定外でした。", None
 
     status = result.get("status")
     status_ok = str(status).upper() in {"200", "OK"}
     if not status_ok or response.status_code >= 400:
         _debug(f"FANZA error: http={response.status_code} status={status} errors={result.get('errors')}")
-        return [], _friendly_api_error(result)
+        return [], _friendly_api_error(result), None
 
     items = _extract_items(result)
-    _debug(f"FANZA floor={floor} raw_count={len(items)} result_count={result.get('result_count')}")
-    return items, None
+    total_count: int | None = None
+    raw_total = result.get("total_count")
+    if raw_total is not None:
+        try:
+            total_count = int(raw_total)
+        except (TypeError, ValueError):
+            total_count = None
+
+    _debug(
+        f"FANZA floor={floor} raw_count={len(items)} "
+        f"result_count={result.get('result_count')} total_count={total_count}"
+    )
+    return items, None, total_count
 
 
-def fetch_fanza_works(keyword: str, limit: int = 20) -> tuple[list[dict[str, Any]], str | None]:
+def fetch_fanza_works(
+    keyword: str,
+    limit: int = 20,
+    sort: str = "popular",
+    page: int = 1,
+    floor: str | None = None,
+) -> FanzaFetchResult:
     """
     FANZA AV作品をキーワード検索する。
 
-    Returns:
-        (正規化済み作品リスト, エラーメッセージ or None)
-        成功時（0件含む）の error は None。
+    sort: popular(rank) / newest(date)
+    page: 1始まり。offset = (page-1)*hits + 1
     """
     keyword = keyword.strip()
+    api_sort = normalize_fanza_sort(sort)
+    page = max(1, int(page))
+    hits = max(1, min(int(limit), 100))
+    offset = (page - 1) * hits + 1
+
     if not keyword:
-        return [], None
+        return FanzaFetchResult(works=[], error=None, page=page, hits=hits, sort=api_sort)
 
     creds = _credentials()
     if creds is None:
         _debug("FANZA search skipped: credentials not configured")
-        return [], CONFIG_ERROR
+        return FanzaFetchResult(
+            works=[],
+            error=CONFIG_ERROR,
+            page=page,
+            hits=hits,
+            sort=api_sort,
+        )
 
     api_id, affiliate_id_raw = creds
     affiliate_id = _api_affiliate_id(affiliate_id_raw)
     if affiliate_id != affiliate_id_raw:
         _debug(f"FANZA affiliate_id normalized to API suffix (...{affiliate_id[-3:]})")
 
-    hits = max(1, min(int(limit), 100))
-    _debug(f"FANZA search keyword: {keyword}")
+    _debug(f"FANZA search keyword={keyword!r} sort={api_sort} page={page} offset={offset}")
+
+    floors: tuple[str, ...]
+    if floor and floor in FLOORS:
+        floors = (floor,)
+    elif page > 1:
+        # ページ送り時は videoa を優先（初回と同じフロア想定）
+        floors = ("videoa",)
+    else:
+        floors = FLOORS
 
     last_error: str | None = None
     raw_items: list[dict[str, Any]] = []
-    for floor in FLOORS:
-        items, error = _request_items(api_id, affiliate_id, keyword, hits, floor)
+    total_count: int | None = None
+    used_floor: str | None = None
+
+    for candidate in floors:
+        items, error, count = _request_items(
+            api_id, affiliate_id, keyword, hits, candidate, api_sort, offset
+        )
         if error:
             last_error = error
-            # 認証エラーは他フロアでも同じなので即返す
             if "API認証" in error:
-                return [], error
+                return FanzaFetchResult(
+                    works=[],
+                    error=error,
+                    page=page,
+                    hits=hits,
+                    sort=api_sort,
+                )
             continue
+        total_count = count
         if items:
             raw_items = items
+            used_floor = candidate
+            break
+        # 0件でも成功ならそのフロアの total を採用して終了（次フロアへは page1 のみ）
+        if page == 1 and count == 0:
+            continue
+        if page > 1:
+            used_floor = candidate
             break
 
     if not raw_items:
         if last_error:
-            return [], last_error
+            return FanzaFetchResult(
+                works=[],
+                error=last_error,
+                total_count=total_count,
+                page=page,
+                hits=hits,
+                sort=api_sort,
+                floor=used_floor,
+            )
         _debug("FANZA fetched count: 0")
-        return [], None
+        return FanzaFetchResult(
+            works=[],
+            error=None,
+            total_count=total_count if total_count is not None else 0,
+            page=page,
+            hits=hits,
+            sort=api_sort,
+            floor=used_floor,
+        )
 
     works = [_normalize_item(item, keyword) for item in raw_items]
-    works = [work for work in works if work.get("title") and work["title"] != "—"]
-    _debug(f"FANZA normalized count: {len(works)}")
-    if works:
-        titles = " | ".join(work["title"][:40] for work in works[:5])
+    # 重複除外（content_id）しつつ元順維持
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for work in works:
+        if not work.get("title") or work["title"] == "—":
+            continue
+        cid = str(work.get("content_id") or "")
+        if cid and cid in seen:
+            continue
+        if cid:
+            seen.add(cid)
+        deduped.append(work)
+
+    _debug(f"FANZA normalized count: {len(deduped)}")
+    if deduped:
+        titles = " | ".join(work["title"][:40] for work in deduped[:5])
         _debug(f"FANZA top titles: {titles}")
 
-    return works, None
+    return FanzaFetchResult(
+        works=deduped,
+        error=None,
+        total_count=total_count,
+        page=page,
+        hits=hits,
+        sort=api_sort,
+        floor=used_floor,
+    )

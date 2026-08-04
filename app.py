@@ -3,9 +3,9 @@ import os
 from datetime import date
 from urllib.parse import quote
 
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, jsonify, render_template, request
 
-from search_expansion import fetch_expanded_works
+from search_expansion import fetch_expanded_works, fetch_source_ordered_works
 from fanza_api import fetch_fanza_works
 from ai_recommend import attach_doujin_reasons, attach_fanza_reasons
 
@@ -22,6 +22,11 @@ if os.environ.get("SEARCH_DEBUG", "0" if IS_VERCEL else "1") == "1":
     pass
 MAX_RESULTS = 10 if IS_VERCEL else 30
 MAX_AV_RESULTS = 10 if IS_VERCEL else 20
+
+SORT_RECOMMEND = "recommend"
+SORT_POPULAR = "popular"
+SORT_NEWEST = "newest"
+VALID_SORTS = {SORT_RECOMMEND, SORT_POPULAR, SORT_NEWEST}
 
 POPULAR_KEYWORDS = [
     "男の娘",
@@ -66,8 +71,136 @@ def prevent_html_cache(response):
     return response
 
 
-def _works_to_results(works, keyword: str = ""):
-    return attach_doujin_reasons(works[:MAX_RESULTS], keyword)
+def _normalize_sort(value: str | None) -> str:
+    key = (value or SORT_RECOMMEND).strip().lower()
+    if key in ("new", "date", "release"):
+        return SORT_NEWEST
+    if key in ("rank", "hot", "trend"):
+        return SORT_POPULAR
+    if key in VALID_SORTS:
+        return key
+    return SORT_RECOMMEND
+
+
+def _parse_page(value: str | None) -> int:
+    try:
+        return max(1, int(value or "1"))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _has_more(page: int, page_size: int, total_count: int | None, fetched: int) -> bool:
+    if total_count is not None:
+        return page * page_size < total_count
+    return fetched >= page_size
+
+
+def _works_to_results(works, keyword: str = "", *, with_ai: bool = True, limit: int | None = None):
+    cap = MAX_RESULTS if limit is None else max(0, int(limit))
+    sliced = works[:cap]
+    if with_ai:
+        return attach_doujin_reasons(sliced, keyword)
+    # 追加読み込みはテンプレ理由のみ（応答速度優先）
+    from ai_recommend import template_reasons
+
+    items = []
+    for work in sliced:
+        title = getattr(work, "title", "") or ""
+        circle = getattr(work, "circle_name", "") or ""
+        items.append(
+            {
+                "title": title,
+                "circle_name": circle,
+                "price": getattr(work, "price", "—"),
+                "image_url": getattr(work, "thumbnail_url", ""),
+                "url": getattr(work, "product_url", ""),
+                "product_id": getattr(work, "product_id", ""),
+                "reasons": template_reasons(keyword, title, circle),
+            }
+        )
+    return items
+
+
+def _fetch_doujin_page(keyword: str, sort: str, page: int, *, with_ai: bool = True):
+    """同人結果1ページ分を取得。元サイト順（popular/newest）またはおすすめ拡張。"""
+    if sort == SORT_RECOMMEND:
+        if page > 1:
+            return {
+                "items": [],
+                "error": None,
+                "total_count": None,
+                "page": page,
+                "page_size": MAX_RESULTS,
+                "has_more": False,
+                "sort": sort,
+            }
+        works, _url, error, _terms = fetch_expanded_works(keyword)
+        items = _works_to_results(works, keyword, with_ai=with_ai)
+        total = len(works) if works else (0 if not error else None)
+        return {
+            "items": items,
+            "error": error,
+            "total_count": total,
+            "page": 1,
+            "page_size": MAX_RESULTS,
+            "has_more": False,
+            "sort": sort,
+        }
+
+    # DLsite は1ページ約30件固定。返却順をそのまま表示する。
+    result = fetch_source_ordered_works(
+        keyword, sort=sort, page=page, per_page=30
+    )
+    page_size = 30
+    items = _works_to_results(
+        result.works,
+        keyword,
+        with_ai=with_ai and page == 1,
+        limit=len(result.works),
+    )
+    for item, work in zip(items, result.works):
+        item["product_id"] = getattr(work, "product_id", "")
+    return {
+        "items": items,
+        "error": result.error,
+        "total_count": result.total_count,
+        "page": result.page,
+        "page_size": page_size,
+        "has_more": _has_more(result.page, page_size, result.total_count, len(items)),
+        "sort": sort,
+    }
+
+
+def _fetch_av_page(keyword: str, sort: str, page: int, *, with_ai: bool = True):
+    api_sort = SORT_NEWEST if sort == SORT_NEWEST else SORT_POPULAR
+    # おすすめタブでも AV は公式人気順
+    if sort == SORT_RECOMMEND:
+        api_sort = SORT_POPULAR
+    result = fetch_fanza_works(
+        keyword, limit=MAX_AV_RESULTS, sort=api_sort, page=page
+    )
+    works = result.works
+    if works and with_ai and page == 1:
+        works = attach_fanza_reasons(works, keyword)
+    elif works and not with_ai:
+        from ai_recommend import fanza_template_reasons
+
+        for work in works:
+            work["reasons"] = fanza_template_reasons(
+                keyword,
+                str(work.get("title") or ""),
+                str(work.get("actress") or ""),
+            )
+    return {
+        "items": works,
+        "error": result.error,
+        "total_count": result.total_count,
+        "page": result.page,
+        "page_size": result.hits,
+        "has_more": _has_more(result.page, result.hits, result.total_count, len(works)),
+        "sort": sort,
+        "floor": result.floor,
+    }
 
 
 @app.route("/")
@@ -78,30 +211,84 @@ def index():
 @app.route("/results", methods=["GET"])
 def results():
     keyword = request.args.get("keyword", "").strip()
+    sort = _normalize_sort(request.args.get("sort"))
+    tab = (request.args.get("tab") or "doujin").strip().lower()
+    if tab not in ("doujin", "av"):
+        tab = "doujin"
+
+    empty_ctx = {
+        "keyword": keyword,
+        "sort": sort,
+        "tab": tab,
+        "results": [],
+        "av_works": [],
+        "av_error": None,
+        "error": None,
+        "doujin_total": None,
+        "av_total": None,
+        "doujin_has_more": False,
+        "av_has_more": False,
+        "doujin_page": 1,
+        "av_page": 1,
+        "popular_keywords": POPULAR_KEYWORDS,
+    }
 
     if not keyword:
-        return render_template(
-            "results.html",
-            keyword="",
-            results=[],
-            error="キーワードを入力してください。",
-            popular_keywords=POPULAR_KEYWORDS,
-        )
+        empty_ctx["error"] = "キーワードを入力してください。"
+        return render_template("results.html", **empty_ctx)
 
-    works, _search_url, error, _search_terms = fetch_expanded_works(keyword)
-    results_data = _works_to_results(works, keyword)
-    av_works, av_error = fetch_fanza_works(keyword, limit=MAX_AV_RESULTS)
-    if av_works:
-        av_works = attach_fanza_reasons(av_works, keyword)
+    # 初回表示は page=1 固定（追加は /api/results）
+    doujin = _fetch_doujin_page(keyword, sort, 1, with_ai=True)
+    av = _fetch_av_page(keyword, sort, 1, with_ai=True)
 
     return render_template(
         "results.html",
         keyword=keyword,
-        results=results_data,
-        av_works=av_works,
-        av_error=av_error,
-        error=error,
+        sort=sort,
+        tab=tab,
+        results=doujin["items"],
+        av_works=av["items"],
+        av_error=av["error"],
+        error=doujin["error"],
+        doujin_total=doujin["total_count"],
+        av_total=av["total_count"],
+        doujin_has_more=doujin["has_more"],
+        av_has_more=av["has_more"],
+        doujin_page=doujin["page"],
+        av_page=av["page"],
         popular_keywords=POPULAR_KEYWORDS,
+    )
+
+
+@app.route("/api/results", methods=["GET"])
+def api_results():
+    """同じ sort / keyword で次ページを取得（もっと見る用）。"""
+    keyword = request.args.get("keyword", "").strip()
+    sort = _normalize_sort(request.args.get("sort"))
+    page = _parse_page(request.args.get("page"))
+    source = (request.args.get("source") or "doujin").strip().lower()
+
+    if not keyword:
+        return jsonify({"ok": False, "error": "キーワードを入力してください。", "items": []}), 400
+
+    if source == "av":
+        payload = _fetch_av_page(keyword, sort, page, with_ai=False)
+    else:
+        payload = _fetch_doujin_page(keyword, sort, page, with_ai=False)
+
+    return jsonify(
+        {
+            "ok": not bool(payload.get("error")) or bool(payload.get("items")),
+            "error": payload.get("error"),
+            "items": payload.get("items") or [],
+            "total_count": payload.get("total_count"),
+            "page": payload.get("page"),
+            "page_size": payload.get("page_size"),
+            "has_more": payload.get("has_more"),
+            "sort": sort,
+            "source": source,
+            "keyword": keyword,
+        }
     )
 
 

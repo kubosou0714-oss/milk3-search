@@ -199,18 +199,19 @@
             <div class="mini-search-box">
                 <form action="{{ url_for('results') }}" method="GET" class="mini-form">
                     <input type="text" name="keyword" class="mini-input" value="{{ keyword }}" placeholder="キーワードを入力してください" required autocomplete="off">
+                    <input type="hidden" name="sort" value="{{ sort|default('recommend') }}">
                     <button type="submit" class="btn-search-primary mini-btn touch-btn">探す</button>
                 </form>
                 <div class="popular-keywords">
                     <div class="popular-keywords-title">人気のキーワード</div>
                     <div class="keyword-chips">
                         {% for word in popular_keywords[:4] %}
-                        <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
+                        <a href="{{ url_for('results', keyword=word, sort=sort|default('recommend')) }}" class="keyword-chip touch-btn">{{ word }}</a>
                         {% endfor %}
                     </div>
                     <div class="keyword-chips keyword-chips--more" hidden>
                         {% for word in popular_keywords[4:] %}
-                        <a href="{{ url_for('results', keyword=word) }}" class="keyword-chip touch-btn">{{ word }}</a>
+                        <a href="{{ url_for('results', keyword=word, sort=sort|default('recommend')) }}" class="keyword-chip touch-btn">{{ word }}</a>
                         {% endfor %}
                     </div>
                     {% if popular_keywords|length > 4 %}
@@ -226,56 +227,92 @@
                 <img src="{{ url_for('static', filename='シコいゾウ.png') }}" alt="シコいゾウ" class="character-img" decoding="async">
             </div>
 
-            <div class="center-cards-zone">
-                {% if error %}
-                <p class="error-message">{{ error }}</p>
-                {% elif results %}
+            <div class="center-cards-zone"
+                 data-keyword="{{ keyword }}"
+                 data-sort="{{ sort|default('recommend') }}">
+                {% if not keyword %}
+                <p class="error-message">キーワードを入力して検索してください。</p>
+                {% else %}
                 <div class="results-section-header">
                     <h2 class="results-section-title"><span class="star">★</span> おすすめ作品</h2>
                     <div class="mode-tabs" role="tablist" aria-label="作品カテゴリ">
-                        <button type="button" class="mode-tab is-active touch-btn" role="tab" aria-selected="true" data-tab="doujin">同人</button>
-                        <button type="button" class="mode-tab touch-btn" role="tab" aria-selected="false" data-tab="av">AV</button>
+                        <button type="button" class="mode-tab{% if tab|default('doujin') != 'av' %} is-active{% endif %} touch-btn" role="tab" aria-selected="{{ 'true' if tab|default('doujin') != 'av' else 'false' }}" data-tab="doujin">同人</button>
+                        <button type="button" class="mode-tab{% if tab|default('doujin') == 'av' %} is-active{% endif %} touch-btn" role="tab" aria-selected="{{ 'true' if tab|default('doujin') == 'av' else 'false' }}" data-tab="av">AV</button>
                     </div>
                 </div>
 
-                <div id="doujin-results-panel" class="results-mode-panel" role="tabpanel">
-                    {% for item in results %}
-                    <a href="{{ item.url }}" class="product-card" target="_blank" rel="noopener noreferrer">
-                        <div class="thumb-area{% if item.image_url %} has-image{% endif %}">
-                            {% if item.image_url %}
-                            <img src="{{ item.image_url }}" alt="" class="thumb-img" loading="lazy" onerror="this.closest('.thumb-area').classList.remove('has-image'); this.remove();">
-                            {% endif %}
-                        </div>
-                        <div class="info-area">
-                            <div>
-                                <div class="title-text">{{ item.title }}</div>
-                                <div class="author-text">サークル：{{ item.circle_name }}</div>
-                                {% if item.reasons %}
-                                <div class="recommend-reasons">
-                                    <div class="recommend-reasons-title">おすすめ理由</div>
-                                    <ul>
-                                        {% for reason in item.reasons %}
-                                        <li>{{ reason }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
-                                {% endif %}
-                            </div>
-                            <div class="meta-bottom">
-                                <div class="price-text">{{ item.price }}<span>(税込)</span></div>
-                                <span class="btn-dlsite touch-btn">DLsiteで見る ↗</span>
-                            </div>
-                        </div>
-                    </a>
-                    {% endfor %}
+                <div class="sort-tabs" role="tablist" aria-label="並び順">
+                    <a href="{{ url_for('results', keyword=keyword, sort='recommend', tab=tab|default('doujin')) }}"
+                       class="sort-tab touch-btn{% if sort|default('recommend') == 'recommend' %} is-active{% endif %}">おすすめ</a>
+                    <a href="{{ url_for('results', keyword=keyword, sort='popular', tab=tab|default('doujin')) }}"
+                       class="sort-tab touch-btn{% if sort|default('recommend') == 'popular' %} is-active{% endif %}">人気順</a>
+                    <a href="{{ url_for('results', keyword=keyword, sort='newest', tab=tab|default('doujin')) }}"
+                       class="sort-tab touch-btn{% if sort|default('recommend') == 'newest' %} is-active{% endif %}">新着順</a>
                 </div>
 
-                <div id="av-results-panel" class="results-mode-panel is-hidden" role="tabpanel" hidden>
-                    {% if av_error %}
+                <div id="doujin-results-panel" class="results-mode-panel{% if tab|default('doujin') == 'av' %} is-hidden{% endif %}" role="tabpanel"{% if tab|default('doujin') == 'av' %} hidden{% endif %}
+                     data-page="{{ doujin_page|default(1) }}"
+                     data-has-more="{{ '1' if doujin_has_more else '0' }}"
+                     data-total="{{ doujin_total if doujin_total is not none else '' }}">
+                    {% if doujin_total is not none %}
+                    <p class="results-count">全{{ doujin_total }}件</p>
+                    {% elif sort|default('recommend') == 'recommend' and results %}
+                    <p class="results-count">表示{{ results|length }}件（おすすめ）</p>
+                    {% endif %}
+
+                    {% if error and not results %}
+                    <p class="error-message">{{ error }}</p>
+                    {% elif results %}
+                        {% for item in results %}
+                        <a href="{{ item.url }}" class="product-card" target="_blank" rel="noopener noreferrer" data-id="{{ item.product_id|default('') }}">
+                            <div class="thumb-area{% if item.image_url %} has-image{% endif %}">
+                                {% if item.image_url %}
+                                <img src="{{ item.image_url }}" alt="" class="thumb-img" loading="lazy" onerror="this.closest('.thumb-area').classList.remove('has-image'); this.remove();">
+                                {% endif %}
+                            </div>
+                            <div class="info-area">
+                                <div>
+                                    <div class="title-text">{{ item.title }}</div>
+                                    <div class="author-text">サークル：{{ item.circle_name }}</div>
+                                    {% if item.reasons %}
+                                    <div class="recommend-reasons">
+                                        <div class="recommend-reasons-title">おすすめ理由</div>
+                                        <ul>
+                                            {% for reason in item.reasons %}
+                                            <li>{{ reason }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="meta-bottom">
+                                    <div class="price-text">{{ item.price }}<span>(税込)</span></div>
+                                    <span class="btn-dlsite touch-btn">DLsiteで見る ↗</span>
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                        {% if doujin_has_more %}
+                        <button type="button" class="results-load-more touch-btn" data-source="doujin">もっと見る▽</button>
+                        {% endif %}
+                    {% else %}
+                    <p class="error-message">同人作品が見つかりませんでした</p>
+                    {% endif %}
+                    <p class="error-message results-load-error" hidden></p>
+                </div>
+
+                <div id="av-results-panel" class="results-mode-panel{% if tab|default('doujin') != 'av' %} is-hidden{% endif %}" role="tabpanel"{% if tab|default('doujin') != 'av' %} hidden{% endif %}
+                     data-page="{{ av_page|default(1) }}"
+                     data-has-more="{{ '1' if av_has_more else '0' }}"
+                     data-total="{{ av_total if av_total is not none else '' }}">
+                    {% if av_total is not none %}
+                    <p class="results-count">全{{ av_total }}件</p>
+                    {% endif %}
+                    {% if av_error and not av_works %}
                     <p class="error-message">{{ av_error }}</p>
                     {% elif av_works %}
                         {% for item in av_works %}
-                        <a href="{{ item.link_url }}" class="product-card product-card--av" target="_blank" rel="noopener noreferrer">
+                        <a href="{{ item.link_url }}" class="product-card product-card--av" target="_blank" rel="noopener noreferrer" data-id="{{ item.content_id|default('') }}">
                             <div class="thumb-area thumb-area--av{% if item.image_url %} has-image{% endif %}">
                                 {% if item.image_url %}
                                 <img src="{{ item.image_url }}" alt="" class="thumb-img" loading="lazy" onerror="this.closest('.thumb-area').classList.remove('has-image'); this.remove();">
@@ -314,12 +351,14 @@
                             </div>
                         </a>
                         {% endfor %}
+                        {% if av_has_more %}
+                        <button type="button" class="results-load-more touch-btn" data-source="av">もっと見る▽</button>
+                        {% endif %}
                     {% else %}
                     <p class="error-message">AV作品が見つかりませんでした</p>
                     {% endif %}
+                    <p class="error-message results-load-error" hidden></p>
                 </div>
-                {% else %}
-                <p class="error-message">キーワードを入力して検索してください。</p>
                 {% endif %}
             </div>
         </div>

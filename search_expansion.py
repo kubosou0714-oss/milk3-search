@@ -7,7 +7,13 @@ import logging
 import os
 from dataclasses import dataclass, field
 
-from dlsite_scraper import WorkItem, build_search_url, fetch_works
+from dlsite_scraper import (
+    FetchResult,
+    WorkItem,
+    build_search_url,
+    fetch_works,
+    normalize_dlsite_order,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -316,11 +322,11 @@ def _rank_works(query: str) -> tuple[list[ScoredWork], str, str | None, list[str
     last_error: str | None = None
 
     for term in search_terms:
-        works, _, error = fetch_works(term)
-        if not works and error:
-            last_error = error
+        result = fetch_works(term)
+        if not result.works and result.error:
+            last_error = result.error
 
-        for work in works:
+        for work in result.works:
             pid = work.product_id
             scored = _score_work(work, ctx, term)
             merged[pid] = _merge_scored(merged.get(pid), scored)
@@ -351,3 +357,26 @@ def fetch_expanded_works(
 
     _log_top_results(query, ranked)
     return [s.work for s in ranked], search_url, None, search_terms
+
+
+def fetch_source_ordered_works(
+    query: str,
+    sort: str = "popular",
+    page: int = 1,
+    per_page: int | None = None,
+) -> FetchResult:
+    """
+    DLsite の並び順をそのまま使う（拡張スコアなし）。
+    sort: popular / newest
+    """
+    query = query.strip()
+    order = normalize_dlsite_order(sort)
+    if not query:
+        return FetchResult(
+            works=[],
+            search_url=build_search_url("", order=order),
+            error="キーワードを入力してください。",
+            page=max(1, int(page)),
+            order=order,
+        )
+    return fetch_works(query, page=page, order=order, per_page=per_page)
