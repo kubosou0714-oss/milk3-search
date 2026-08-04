@@ -1,13 +1,16 @@
 import logging
 import os
+from datetime import date
+from urllib.parse import quote
 
-from flask import Flask, render_template, request
+from flask import Flask, Response, render_template, request
 
 from search_expansion import fetch_expanded_works
 from fanza_api import fetch_fanza_works
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "public", "static")
+SITE_URL = "https://milk3-search.vercel.app"
 
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
 
@@ -27,6 +30,9 @@ POPULAR_KEYWORDS = [
     "学園",
     "ラブラブ",
 ]
+
+# Sitemap に載せる人気キーワード（検索結果の発見性向上）
+SITEMAP_KEYWORDS = ["催眠", "巨乳", "NTR", "男の娘", "メス堕ち", "寝取られ"]
 
 
 def _asset_version() -> str:
@@ -114,8 +120,51 @@ def results():
     )
 
 
-def _legal_page(page_title: str, content: str):
-    return render_template("legal.html", page_title=page_title, content=content)
+def _legal_page(page_title: str, content: str, path: str):
+    return render_template(
+        "legal.html",
+        page_title=page_title,
+        content=content,
+        canonical_url=f"{SITE_URL}{path}",
+    )
+
+
+@app.route("/robots.txt")
+def robots_txt():
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\n"
+    )
+    return Response(body, mimetype="text/plain; charset=utf-8")
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    today = date.today().isoformat()
+    urls = [
+        ("/", "1.0", "weekly"),
+        ("/terms", "0.3", "yearly"),
+        ("/privacy", "0.3", "yearly"),
+        ("/tokusho", "0.3", "yearly"),
+    ]
+    for keyword in SITEMAP_KEYWORDS:
+        urls.append((f"/results?keyword={quote(keyword)}", "0.7", "weekly"))
+
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
+    for path, priority, changefreq in urls:
+        loc = f"{SITE_URL}{path}"
+        parts.append("  <url>")
+        parts.append(f"    <loc>{loc}</loc>")
+        parts.append(f"    <lastmod>{today}</lastmod>")
+        parts.append(f"    <changefreq>{changefreq}</changefreq>")
+        parts.append(f"    <priority>{priority}</priority>")
+        parts.append("  </url>")
+    parts.append("</urlset>")
+    return Response("\n".join(parts) + "\n", mimetype="application/xml; charset=utf-8")
 
 
 @app.route("/terms")
@@ -141,7 +190,7 @@ def terms():
     <h2>6. 規約の変更</h2>
     <p>当サイトは必要に応じて本規約を変更できます。変更後の規約は当ページに掲載した時点から効力を生じます。</p>
     """
-    return _legal_page("利用規約", content)
+    return _legal_page("利用規約", content, "/terms")
 
 
 @app.route("/privacy")
@@ -169,7 +218,7 @@ def privacy():
     <h2>5. お問い合わせ</h2>
     <p>本ポリシーに関するお問い合わせは、当サイト運営者が別途指定する方法にて受け付けます。</p>
     """
-    return _legal_page("プライバシーポリシー", content)
+    return _legal_page("プライバシーポリシー", content, "/privacy")
 
 
 @app.route("/tokusho")
@@ -197,7 +246,7 @@ def tokusho():
     <h2>返品・キャンセル</h2>
     <p>当サイトでは商品販売を行わないため、返品対応はありません。外部購入分は各販売事業者の規約に従います。</p>
     """
-    return _legal_page("特定商取引法に基づく表記", content)
+    return _legal_page("特定商取引法に基づく表記", content, "/tokusho")
 
 
 if __name__ == "__main__":

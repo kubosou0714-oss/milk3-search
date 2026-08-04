@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }} | SHIKOZO</title>
+    <meta name="description" content="SHIKOZO（シコいゾウ）の{{ page_title }}。18歳以上限定のレコメンド検索サイトに関する公式情報です。">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="SHIKOZO">
+    <meta property="og:title" content="{{ page_title }} | SHIKOZO">
+    <meta property="og:description" content="SHIKOZO（シコいゾウ）の{{ page_title }}。">
+    <meta property="og:url" content="{{ canonical_url }}">
+    <meta property="og:locale" content="ja_JP">
+    <meta property="og:image" content="https://milk3-search.vercel.app/static/og-image.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ page_title }} | SHIKOZO">
+    <meta name="twitter:description" content="SHIKOZO（シコいゾウ）の{{ page_title }}。">
+    <meta name="twitter:image" content="https://milk3-search.vercel.app/static/og-image.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     <style>
         :root {

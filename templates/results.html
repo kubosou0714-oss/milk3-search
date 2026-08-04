@@ -3,7 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHIKOZO | 検索結果</title>
+    {% if keyword %}
+    <title>{{ keyword }} の検索結果 | SHIKOZO</title>
+    <meta name="description" content="「{{ keyword }}」に関連するおすすめ同人・アダルト作品をSHIKOZO（シコいゾウ）が提案します。DLsite・FANZA対応。18歳以上限定。">
+    <link rel="canonical" href="https://milk3-search.vercel.app/results?keyword={{ keyword|urlencode }}">
+    <meta property="og:title" content="{{ keyword }} の検索結果 | SHIKOZO">
+    <meta property="og:description" content="「{{ keyword }}」のおすすめ作品をシコいゾウがレコメンド。18歳以上限定。">
+    <meta property="og:url" content="https://milk3-search.vercel.app/results?keyword={{ keyword|urlencode }}">
+    {% else %}
+    <title>検索結果 | SHIKOZO</title>
+    <meta name="description" content="SHIKOZO（シコいゾウ）の作品検索結果。キーワードからDLsite・FANZAのおすすめを提案します。18歳以上限定。">
+    <link rel="canonical" href="https://milk3-search.vercel.app/results">
+    <meta property="og:title" content="検索結果 | SHIKOZO">
+    <meta property="og:description" content="キーワードからシコい作品をおすすめ。DLsite・FANZA対応。18歳以上限定。">
+    <meta property="og:url" content="https://milk3-search.vercel.app/results">
+    {% endif %}
+    <meta name="robots" content="index,follow">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="SHIKOZO">
+    <meta property="og:locale" content="ja_JP">
+    <meta property="og:image" content="https://milk3-search.vercel.app/static/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% if keyword %}{{ keyword }} の検索結果 | SHIKOZO{% else %}検索結果 | SHIKOZO{% endif %}">
+    <meta name="twitter:description" content="{% if keyword %}「{{ keyword }}」のおすすめ作品をシコいゾウがレコメンド。{% else %}キーワードからシコい作品をおすすめ。{% endif %}18歳以上限定。">
+    <meta name="twitter:image" content="https://milk3-search.vercel.app/static/og-image.png">
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
     {% include 'partials/age_gate_boot.html' %}
     <style>
