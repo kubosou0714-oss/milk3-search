@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 IS_VERCEL = os.environ.get("VERCEL") == "1"
 DEFAULT_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
-MAX_WORKERS = 3 if IS_VERCEL else 4
-REQUEST_TIMEOUT = 12 if IS_VERCEL else 25
+MAX_WORKERS = 2 if IS_VERCEL else 4
+REQUEST_TIMEOUT = 15 if IS_VERCEL else 25
+# Vercel の実行時間制限を避けるため、1リクエストあたりの新規生成数を抑える
+MAX_NEW_GENERATIONS = 5 if IS_VERCEL else 12
 
 SYSTEM_PROMPT = """あなたは同人・アダルト作品のレコメンドサイトの編集者です。
 与えられた作品情報をもとに、ユーザーが「読んでみたい／見てみたい」と思える紹介文を日本語で書いてください。
@@ -59,8 +61,8 @@ def fanza_template_reasons(keyword: str, title: str, actress: str) -> list[str]:
 
 def _normalize_blurb(text: str) -> str:
     cleaned = (text or "").strip().strip("「」\"'")
-    cleaned = re.sub(r"\s+", "", cleaned)
-    # 句点後に読みやすく改行されていた場合も1塊として扱うが、表示は1要素
+    cleaned = re.sub(r"[\r\n\t]+", "", cleaned)
+    cleaned = re.sub(r" {2,}", " ", cleaned).strip()
     if len(cleaned) > 180:
         cleaned = cleaned[:177] + "…"
     return cleaned
@@ -92,12 +94,13 @@ def _build_user_prompt(payload: dict[str, Any]) -> str:
 def _call_openai(payload: dict[str, Any]) -> str | None:
     api_key = _api_key()
     if not api_key:
+        logger.info("AI blurb skipped: OPENAI_API_KEY missing")
         return None
 
     try:
         from openai import OpenAI
     except ImportError:
-        logger.info("openai package not installed")
+        logger.info("AI blurb skipped: openai package not installed")
         return None
 
     client = OpenAI(api_key=api_key, timeout=REQUEST_TIMEOUT)
@@ -112,16 +115,22 @@ def _call_openai(payload: dict[str, Any]) -> str | None:
             ],
         )
     except Exception as exc:  # noqa: BLE001 — 生成失敗時はテンプレへフォールバック
-        logger.info("OpenAI blurb generation failed: %s", type(exc).__name__)
+        logger.info(
+            "OpenAI blurb generation failed: %s: %s",
+            type(exc).__name__,
+            str(exc)[:180],
+        )
         return None
 
     try:
         content = response.choices[0].message.content or ""
     except (AttributeError, IndexError, KeyError):
+        logger.info("OpenAI blurb generation failed: empty choices")
         return None
 
     blurb = _normalize_blurb(content)
-    if len(blurb) < 40:
+    if len(blurb) < 30:
+        logger.info("OpenAI blurb generation failed: too short (%s chars)", len(blurb))
         return None
     return blurb
 
@@ -187,6 +196,18 @@ def attach_doujin_reasons(works: list[Any], keyword: str) -> list[dict[str, Any]
             )
         )
 
+    if not _api_key():
+        logger.info("AI blurbs: OPENAI_API_KEY missing; using templates")
+    elif not pending:
+        logger.info("AI blurbs: all cached or nothing to generate")
+    else:
+        pending = pending[:MAX_NEW_GENERATIONS]
+        logger.info(
+            "AI blurbs: generating %s new (model=%s)",
+            len(pending),
+            DEFAULT_MODEL,
+        )
+
     if not pending:
         return items
 
@@ -194,15 +215,19 @@ def attach_doujin_reasons(works: list[Any], keyword: str) -> list[dict[str, Any]
         idx, key, payload = entry
         return idx, get_or_create_blurb(key, payload)
 
+    ok_count = 0
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(pending))) as pool:
         futures = [pool.submit(_job, entry) for entry in pending]
         for future in as_completed(futures):
             try:
                 idx, blurb = future.result()
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                logger.info("AI blurb worker failed: %s", type(exc).__name__)
                 continue
             if blurb:
                 items[idx]["reasons"] = [blurb]
+                ok_count += 1
+    logger.info("AI blurbs: generated_ok=%s / attempted=%s", ok_count, len(pending))
 
     return items
 

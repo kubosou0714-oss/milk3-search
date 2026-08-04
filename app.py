@@ -16,8 +16,10 @@ SITE_URL = "https://milk3-search.vercel.app"
 app = Flask(__name__, static_folder=STATIC_DIR, static_url_path="/static")
 
 IS_VERCEL = os.environ.get("VERCEL") == "1"
+# AI紹介文の成否ログを本番でも見えるようにする
+logging.basicConfig(level=logging.INFO, format="%(message)s", force=True)
 if os.environ.get("SEARCH_DEBUG", "0" if IS_VERCEL else "1") == "1":
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    pass
 MAX_RESULTS = 10 if IS_VERCEL else 30
 MAX_AV_RESULTS = 10 if IS_VERCEL else 20
 
