@@ -117,6 +117,7 @@ def _normalize_item(item: dict[str, Any], keyword: str) -> dict[str, Any]:
         "url": url,
         "affiliate_url": affiliate_url,
         "link_url": link_url,
+        "content_id": str(item.get("content_id") or item.get("product_id") or "").strip(),
         "source": "fanza",
         "reasons": reasons[:3],
     }

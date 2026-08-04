@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import quote
 
 import requests
@@ -37,6 +37,9 @@ class WorkItem:
     circle_name: str
     price: str
     product_url: str
+    description: str = ""
+    genres: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
 
 def _resolve_keyword(keyword: str) -> str:
@@ -98,6 +101,49 @@ def _extract_price(item: BeautifulSoup) -> str:
     return "—"
 
 
+def _unique_labels(values: list[str], limit: int = 8) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for value in values:
+        text = (value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _extract_genres_and_tags(li: BeautifulSoup) -> tuple[list[str], list[str]]:
+    genres: list[str] = []
+    tags: list[str] = []
+    for a in li.select(".search_tag a, a[href*='/genre/'], a[href*='/fsr/=/genre']"):
+        label = a.get_text(strip=True)
+        href = a.get("href") or ""
+        if not label:
+            continue
+        if "/genre" in href:
+            genres.append(label)
+        else:
+            tags.append(label)
+    for span in li.select(".search_tag span, .work_genre, .genre_rank"):
+        label = span.get_text(strip=True)
+        if label:
+            tags.append(label)
+    return _unique_labels(genres), _unique_labels(tags)
+
+
+def _extract_description(li: BeautifulSoup) -> str:
+    for selector in (".work_text", ".work_article", ".search_summary", ".work_intro"):
+        el = li.select_one(selector)
+        if el:
+            text = el.get_text(" ", strip=True)
+            if text:
+                return text[:1000]
+    return ""
+
+
 def _extract_thumbnail(li: BeautifulSoup) -> str:
     img_el = li.select_one(".work_thumb_inner > img") or li.select_one("img")
     if img_el:
@@ -137,6 +183,8 @@ def _parse_search_result_html(html_fragment: str) -> list[WorkItem]:
 
         circle_el = li.select_one(".maker_name a")
         circle_name = circle_el.get_text(strip=True) if circle_el else "—"
+        genres, tags = _extract_genres_and_tags(li)
+        description = _extract_description(li)
 
         items.append(
             WorkItem(
@@ -146,6 +194,9 @@ def _parse_search_result_html(html_fragment: str) -> list[WorkItem]:
                 circle_name=circle_name,
                 price=_extract_price(li),
                 product_url=_product_url(product_id),
+                description=description,
+                genres=genres,
+                tags=tags,
             )
         )
 

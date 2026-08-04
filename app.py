@@ -7,6 +7,7 @@ from flask import Flask, Response, render_template, request
 
 from search_expansion import fetch_expanded_works
 from fanza_api import fetch_fanza_works
+from ai_recommend import attach_doujin_reasons, attach_fanza_reasons
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "public", "static")
@@ -63,28 +64,8 @@ def prevent_html_cache(response):
     return response
 
 
-def _recommendation_reasons(keyword: str, title: str, circle_name: str) -> list[str]:
-    reasons: list[str] = []
-    if keyword and keyword in title:
-        reasons.append(f"「{keyword}」のキーワードにマッチしています")
-    if circle_name and circle_name != "—":
-        reasons.append(f"サークル「{circle_name}」の作品です")
-    reasons.append("DLsiteトレンド検索からのおすすめです")
-    return reasons[:3]
-
-
 def _works_to_results(works, keyword: str = ""):
-    return [
-        {
-            "title": w.title,
-            "circle_name": w.circle_name,
-            "price": w.price,
-            "image_url": w.thumbnail_url,
-            "url": w.product_url,
-            "reasons": _recommendation_reasons(keyword, w.title, w.circle_name),
-        }
-        for w in works[:MAX_RESULTS]
-    ]
+    return attach_doujin_reasons(works[:MAX_RESULTS], keyword)
 
 
 @app.route("/")
@@ -108,6 +89,8 @@ def results():
     works, _search_url, error, _search_terms = fetch_expanded_works(keyword)
     results_data = _works_to_results(works, keyword)
     av_works, av_error = fetch_fanza_works(keyword, limit=MAX_AV_RESULTS)
+    if av_works:
+        av_works = attach_fanza_reasons(av_works, keyword)
 
     return render_template(
         "results.html",
