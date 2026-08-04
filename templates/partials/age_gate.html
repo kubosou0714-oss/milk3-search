@@ -1,0 +1,62 @@
+{# 年齢確認ゲート（全ページ共通） #}
+<div id="age-gate" class="age-gate" aria-hidden="true">
+    <div class="age-gate__backdrop" aria-hidden="true"></div>
+    <div class="age-gate__shell">
+        <div class="age-gate__brand">SHIKOZO</div>
+
+        <div class="age-gate__card" role="dialog" aria-modal="true" aria-labelledby="age-gate-title">
+            <div class="age-gate__mascot-wrap">
+                <img
+                    src="{{ url_for('static', filename='シコいゾウ.png') }}"
+                    alt="シコいゾウ"
+                    class="age-gate__mascot"
+                    decoding="async"
+                    width="200"
+                    height="200"
+                >
+                <span class="age-gate__glass" aria-hidden="true">🔍</span>
+            </div>
+
+            <div class="age-gate__ask" data-age-view="ask">
+                <h2 id="age-gate-title" class="age-gate__title">
+                    あなたは<span class="age-gate__accent">18歳以上</span>ですか？
+                </h2>
+                <p class="age-gate__desc">
+                    このサイトには18歳未満の方の閲覧に適さない<br class="age-gate__br">コンテンツが含まれています。
+                </p>
+                <p class="age-gate__warn">18歳未満の方はご利用いただけません。</p>
+
+                <div class="age-gate__actions">
+                    <button type="button" class="age-gate__btn age-gate__btn--yes touch-btn" data-age-yes>
+                        <span class="age-gate__btn-main">はい（18歳以上）</span>
+                        <span class="age-gate__btn-sub">サイトに入る</span>
+                    </button>
+                    <button type="button" class="age-gate__btn age-gate__btn--no touch-btn" data-age-no>
+                        <span class="age-gate__btn-main">いいえ（18歳未満）</span>
+                        <span class="age-gate__btn-sub">サイトを利用しない</span>
+                    </button>
+                </div>
+
+                <p class="age-gate__note">
+                    <span class="age-gate__lock" aria-hidden="true">🔒</span>
+                    18歳以上であることを確認し、自己の責任において利用します。
+                </p>
+            </div>
+
+            <div class="age-gate__denied" data-age-view="denied" hidden>
+                <h2 class="age-gate__title age-gate__title--denied">ご利用いただけません</h2>
+                <p class="age-gate__warn age-gate__warn--lg">18歳未満の方はご利用いただけません。</p>
+                <p class="age-gate__desc">このサイトのコンテンツは18歳以上の方のみご利用いただけます。</p>
+            </div>
+        </div>
+
+        <nav class="age-gate__links" aria-label="法的情報">
+            <a href="{{ url_for('terms') }}">利用規約</a>
+            <span aria-hidden="true">|</span>
+            <a href="{{ url_for('privacy') }}">プライバシーポリシー</a>
+            <span aria-hidden="true">|</span>
+            <a href="{{ url_for('tokusho') }}">特定商取引法に基づく表記</a>
+        </nav>
+        <p class="age-gate__copy">© SHIKOZO All Rights Reserved.</p>
+    </div>
+</div>

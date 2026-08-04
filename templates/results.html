@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SHIKOZO | 検索結果</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
+    {% include 'partials/age_gate_boot.html' %}
     <style>
         :root {
             --bg-color: #fff5f7;
@@ -303,6 +304,7 @@
     <footer class="site-footer">
         <p>このサイトは <a href="https://affiliate.dmm.com/" target="_blank" rel="noopener noreferrer">DMMアフィリエイト</a> のAPIを利用しています。</p>
     </footer>
+    {% include 'partials/age_gate.html' %}
     <script src="{{ url_for('static', filename='menu.js', v=asset_version) }}"></script>
 </body>
 </html>

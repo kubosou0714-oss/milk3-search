@@ -1,0 +1,13 @@
+<script>
+(function () {
+    try {
+        if (window.localStorage.getItem("shikozo_age_verified") === "1") {
+            document.documentElement.classList.add("age-verified");
+        } else {
+            document.documentElement.classList.add("age-pending");
+        }
+    } catch (e) {
+        document.documentElement.classList.add("age-pending");
+    }
+})();
+</script>

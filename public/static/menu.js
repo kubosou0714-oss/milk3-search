@@ -87,4 +87,57 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+
+    var AGE_KEY = 'shikozo_age_verified';
+    var ageGate = document.getElementById('age-gate');
+    if (ageGate) {
+        var askView = ageGate.querySelector('[data-age-view="ask"]');
+        var deniedView = ageGate.querySelector('[data-age-view="denied"]');
+        var yesBtn = ageGate.querySelector('[data-age-yes]');
+        var noBtn = ageGate.querySelector('[data-age-no]');
+        var root = document.documentElement;
+
+        function setPending(pending) {
+            root.classList.toggle('age-pending', pending);
+            root.classList.toggle('age-verified', !pending);
+            document.body.classList.toggle('age-gate-open', pending);
+            ageGate.setAttribute('aria-hidden', pending ? 'false' : 'true');
+            if (!pending) {
+                ageGate.hidden = true;
+            } else {
+                ageGate.hidden = false;
+            }
+        }
+
+        function showDenied() {
+            if (askView) askView.hidden = true;
+            if (deniedView) deniedView.hidden = false;
+            setPending(true);
+        }
+
+        var verified = root.classList.contains('age-verified');
+        if (!verified) {
+            setPending(true);
+        } else {
+            ageGate.hidden = true;
+            ageGate.setAttribute('aria-hidden', 'true');
+        }
+
+        if (yesBtn) {
+            yesBtn.addEventListener('click', function () {
+                try {
+                    window.localStorage.setItem(AGE_KEY, '1');
+                } catch (err) {
+                    /* ignore */
+                }
+                setPending(false);
+            });
+        }
+
+        if (noBtn) {
+            noBtn.addEventListener('click', function () {
+                showDenied();
+            });
+        }
+    }
 });

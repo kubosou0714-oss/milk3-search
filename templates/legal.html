@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} | SHIKOZO</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='site.css', v=asset_version) }}">
+    <style>
+        :root {
+            --bg-color: #fff5f7;
+            --main-pink: #ff8fa3;
+            --light-pink: #ffe5ec;
+            --dark-pink: #fb6f92;
+            --text-dark: #1a1b23;
+            --white: #ffffff;
+            --border-pink: rgba(255, 143, 163, 0.25);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(at 0% 0%, hsla(343,100%,96%,1) 0, transparent 45%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .legal-wrap {
+            max-width: 720px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+            flex: 1;
+        }
+        .legal-card {
+            background: var(--white);
+            border: 1px solid var(--border-pink);
+            border-radius: 24px;
+            padding: 32px 28px;
+            box-shadow: 0 16px 36px rgba(255, 143, 163, 0.08);
+        }
+        .legal-card h1 {
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .legal-card .legal-updated {
+            font-size: 13px;
+            color: #767881;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        .legal-card h2 {
+            font-size: 16px;
+            font-weight: 800;
+            margin: 22px 0 8px;
+            color: var(--dark-pink);
+        }
+        .legal-card p, .legal-card li {
+            font-size: 14px;
+            line-height: 1.8;
+            font-weight: 600;
+            color: #444;
+        }
+        .legal-card ul {
+            padding-left: 1.2em;
+            margin-bottom: 8px;
+        }
+        .legal-back {
+            display: inline-block;
+            margin-top: 20px;
+            color: var(--dark-pink);
+            font-weight: 700;
+            text-decoration: none;
+        }
+        @media (max-width: 768px) {
+            .legal-wrap { padding: 16px 16px 32px; }
+            .legal-card { padding: 22px 18px; border-radius: 18px; }
+            .legal-card h1 { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header site-header--brand">
+        <a href="{{ url_for('index') }}" class="logo logo--shikozo">SHIKOZO</a>
+    </header>
+    <div class="legal-wrap">
+        <div class="legal-card">
+            {{ content|safe }}
+            <a class="legal-back" href="{{ url_for('index') }}">← トップへ戻る</a>
+        </div>
+    </div>
+    <footer class="site-footer">
+        <p>このサイトは <a href="https://affiliate.dmm.com/" target="_blank" rel="noopener noreferrer">DMMアフィリエイト</a> のAPIを利用しています。</p>
+    </footer>
+</body>
+</html>
